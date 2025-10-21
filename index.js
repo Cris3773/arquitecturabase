@@ -1,26 +1,19 @@
 const express = require("express");
-const fs = require("fs");            // <- necesario para leer el HTML
 const path = require("path");
-const modelo = require("./servidor/modelo.js"); // si ya integraste el modelo (3.5)
+const modelo = require("./servidor/modelo.js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let sistema = new modelo.Sistema();  
+let sistema = new modelo.Sistema();
 
-// (opcional) servir estáticos de cliente si luego añades JS/CSS en /cliente
-app.use("/cliente", express.static(path.join(__dirname, "cliente")));
+// === Servir archivos estáticos del cliente ===
+// Esto permite acceder a: /cliente/clienteRest.js, /cliente/controlWeb.js, etc.
+app.use(express.static(path.join(__dirname, "cliente")));
 
-// RUTA RAÍZ -> devolver cliente/index.html
+// === Ruta raíz ===
 app.get("/", (req, res) => {
-  const contenido = fs.readFileSync(path.join(__dirname, "cliente", "index.html"));
-  res.setHeader("Content-Type", "text/html");
-  res.send(contenido);
-});
-
-
-app.get("/", (req, res) => {
-  res.sendFile(require("path").join(__dirname, "cliente", "index.html"));
+  res.sendFile(path.join(__dirname, "cliente", "index.html"));
 });
 
 // === RUTAS REST ===
@@ -50,8 +43,10 @@ app.get("/eliminarUsuario/:nick", (req, res) => {
   res.json({ nick, eliminado: true });
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+// === Arranque del servidor ===
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
+
 
 
