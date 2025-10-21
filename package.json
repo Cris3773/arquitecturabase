@@ -1,0 +1,27 @@
+{
+  "name": "arquitecturabase",
+  "version": "1.0.0",
+  "description": "Repositorio para Procesos",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "testW": "node_modules\\.bin\\jasmine-node servidor",
+    "test": "./node_modules/.bin/jasmine-node servidor"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cris3773/arquitecturabase.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Cris3773/arquitecturabase/issues"
+  },
+  "homepage": "https://github.com/Cris3773/arquitecturabase#readme",
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "jasmine-node": "^3.0.0"
+  }
+}
