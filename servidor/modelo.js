@@ -1,4 +1,4 @@
-function Sistema() {
+function Sistema(test) {
   this.usuarios = {};
 
 this.agregarUsuario = function (nick) {

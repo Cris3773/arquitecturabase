@@ -5,7 +5,7 @@ const modelo = require("./servidor/modelo.js");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let sistema = new modelo.Sistema();
+let sistema = new modelo.Sistema({test:false})
 
 
 app.use("/cliente", express.static(path.join(__dirname, "cliente")));

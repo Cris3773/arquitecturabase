@@ -1,25 +1,31 @@
 function ClienteRest () {
 
-  // --- Alta con control de nick ocupado ---
-  this.agregarUsuario = function (nick) {
-    const url = "/agregarUsuario/" + encodeURIComponent(nick);
-    return $.getJSON(url)
-      .then(function (data) {
-        if (data && data.nick !== -1) {
-          console.log("Usuario " + nick + " ha sido registrado");
-          return data;
-        } else {
-          console.log("El nick ya está ocupado");
-          const err = new Error("Nick ocupado");
-          err.code = "NICK_TAKEN";
-          throw err;
+
+  this.agregarUsuario = function(nick){
+    var cli = this;
+    $.getJSON("/agregarUsuario/" + nick, function(data){
+        let msg = "El nick " + nick + " está ocupado";
+        if (data.nick != -1){
+            console.log("Usuario " + nick + " ha sido registrado");
+            msg = "Bienvenido al sistema, " + nick;
+
+            
+            $.cookie("nick", nick, { path: "/" });
+
+            
+            cw.comprobarSesion();
         }
-      })
-      .catch(function (err) {
-        console.error("agregarUsuario error:", err);
-        throw err; // re-lanza para que el caller pueda capturarlo
-      });
-  };
+        else{
+            console.log("El nick ya está ocupado");
+        }
+
+        // Mostrar el mensaje final (ya sea de éxito o de nick ocupado)
+        cw.mostrarMensaje(msg);
+    });
+};
+
+ 
+
 
   // --- Lista de usuarios ---
   this.obtenerUsuarios = function () {
