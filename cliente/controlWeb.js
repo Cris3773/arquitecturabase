@@ -20,41 +20,38 @@ function ControlWeb(){
     };
 
     // Mostrar formulario de inicio
-   this.mostrarAgregarUsuario = function(){
-    $("#linkSalir").hide();
-    $("#linkInicio").show();
+    this.mostrarAgregarUsuario = function(){ 
+        $('#bnv').remove(); 
+        $('#mAU').remove(); 
 
-    $("#au").empty();
-    let cadena = `
-      <div class="form-group mb-3">
-        <label for="usr">Name:</label>
-        <input type="text" class="form-control" id="usr" placeholder="Introduce el nick">
-      </div>
-      <button id="btnAU" type="button" class="btn btn-primary">Agregar usuario</button>
-    `;
-    $("#au").append(cadena);
+        let cadena = '<div id="mAU">';
+        cadena += '<div class="card"><div class="card-body">';
+        cadena += '<div class="form-group">';
+        cadena += '<label for="nick">Nick:</label>';
+        cadena += '<p><input type="text" class="form-control" id="nick" placeholder="Introduce un nick"></p>';
+        cadena += '<button id="btnAU" type="submit" class="btn btn-primary">Submit</button>';
+        
+        // 🔹 Botón oficial de Google (según la práctica)
+        cadena += '<div class="mt-3">';
+        cadena += '<a href="/auth/google">';
+        cadena += '<img src="./cliente/img/boton_google.png" style="height:40px;">';
+        cadena += '</a></div>';
 
-    $("#btnAU").off("click").on("click", () => {
-        const nick = $("#usr").val().trim();
-        if (nick){
-            rest.agregarUsuario(nick)
-                .then(() => {
-                    self.actualizarListaUsuarios();
+        cadena += '</div></div></div></div>'; 
 
-                 
-                    //localStorage.setItem("nick", nick);
-                    self.mostrarMensaje("Bienvenido al sistema, "+nick);
+        $("#au").append(cadena);
 
-                    // Mostrar "Salir" y ocultar "Inicio sesión"
-                    $("#linkSalir").show();
-                    $("#linkInicio").hide();
-                })
-                .catch(error => console.error("Error al agregar usuario:", error));
-        } else {
+        // Handler para el botón normal de "Submit"
+        $("#btnAU").off("click").on("click", () => {
+            const nick = $("#nick").val().trim();
+            if (nick){
+            rest.agregarUsuario(nick);
+            } else {
             alert("Por favor, introduce un nick antes de agregar.");
-        }
-    });
-    };
+            }
+        });
+   };
+
 
 
     // Actualizar lista
