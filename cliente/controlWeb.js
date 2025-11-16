@@ -13,6 +13,7 @@ function ControlWeb(){
         $("#linkSalir").hide();
         $("#linkInicio").show();           
     }
+    self.actualizarListaUsuarios();
     };
 
     this.mostrarMensaje = function(txt){

@@ -1,3 +1,4 @@
+const bodyParser = require("body-parser");
 const passport = require("passport");
 const cookieSession = require("cookie-session");
 require("./servidor/passport-setup.js"); 
@@ -11,6 +12,8 @@ const PORT = process.env.PORT || 3000;
 
 let sistema = new modelo.Sistema({test:false})
 
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
 app.use("/cliente", express.static(path.join(__dirname, "cliente")));
 app.use(cookieSession({ 
@@ -27,19 +30,18 @@ app.get("/", (req, res) => {
 });
 app.get("/auth/google",passport.authenticate('google', { scope: ['profile','email'] }));
 app.get('/google/callback',  
-passport.authenticate('google', { failureRedirect: '/fallo' }), 
-function(req, res) { 
-res.redirect('/good'); 
+  passport.authenticate('google', { failureRedirect: '/fallo' }), 
+  function(req, res) { 
+  res.redirect('/good'); 
 }); 
 app.get("/good", function(request,response){ 
-let nick=request.user.emails[0].value; 
-if (nick){ 
-sistema.agregarUsuario(nick); 
-} 
-//console.log(request.user.emails[0].value);   
-response.cookie('nick',nick); 
-response.redirect('/'); 
+  let email=request.user.emails[0].value; 
+  sistema.usuarioGoogle({"email":email},function(obj){ 
+   response.cookie('nick',obj.email); 
+   response.redirect('/'); 
+  }); 
 }); 
+
 app.get("/fallo",function(request,response){ 
 response.send({nick:"nook"}) 
 }); 
@@ -56,5 +58,13 @@ app.get("/eliminarUsuario/:nick", (req, res) => {
   sistema.eliminarUsuario(req.params.nick);
   res.json({ nick: req.params.nick, eliminado: true });
 });
+app.post(
+  '/oneTap/callback',
+  passport.authenticate('google-one-tap', { failureRedirect: '/fallo' }),
+  function(req, res) {
+    res.redirect('/good');
+  }
+);
+
 
 app.listen(PORT, "0.0.0.0", () => console.log(`Listening on ${PORT}`));

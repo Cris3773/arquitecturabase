@@ -11,6 +11,7 @@
  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"></script>
  <script src="/cliente/ClienteRest.js"></script> 
  <script src="/cliente/controlWeb.js"></script>
+ <script src="https://accounts.google.com/gsi/client" async defer></script> 
 <!-- La inicialización del UI se realiza después en el body, una vez que el DOM contiene #au -->
 <style>
   /* alto típico de navbar en Bootstrap 5 */
@@ -73,6 +74,13 @@
             </div>
         </div>
     </div>
+  <div 
+  id="g_id_onload" 
+  data-client_id="582016504675-11lu8bo3hvkondc898udh8s4krs9fgf9.apps.googleusercontent.com" 
+  data-login_uri="/oneTap/callback"
+  data-skip_prompt_cookie="nick"
+  ></div>
+
 
     <script>
   cw = new ControlWeb();  
