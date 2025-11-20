@@ -30,7 +30,25 @@ this.agregarUsuario = function (nick) {
 
   return res;
 };
- 
+// --- REGISTRAR USUARIO LOCAL ---
+
+
+ this.registrarUsuario = function (obj, callback) {
+  // obj viene de request.body -> { email, password }
+
+  // Delegamos todo en la CAD, que ya sabe trabajar con usuariosLocal
+    this.cad.registrarUsuario(
+      {
+        email: obj.email,
+        password: obj.password
+      },
+      function (res) {
+        // res tendrá forma: { ok: true, email: "..."} o { ok: false, msg: "..." }
+        callback(res);
+      }
+    );
+  };
+
 
   this.obtenerUsuarios = function () {
     return this.usuarios;

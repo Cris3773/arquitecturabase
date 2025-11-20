@@ -1,31 +1,26 @@
 function ClienteRest () {
 
-
+  // --- Agregar usuario por nick (la que ya tenías) ---
   this.agregarUsuario = function(nick){
-    var cli = this;
     $.getJSON("/agregarUsuario/" + nick, function(data){
         let msg = "El nick " + nick + " está ocupado";
         if (data.nick != -1){
             console.log("Usuario " + nick + " ha sido registrado");
             msg = "Bienvenido al sistema, " + nick;
 
-            
+            // guardamos cookie de sesión
             $.cookie("nick", nick, { path: "/" });
 
-            
+            // refrescamos la UI según la sesión
             cw.comprobarSesion();
         }
         else{
             console.log("El nick ya está ocupado");
         }
 
-        // Mostrar el mensaje final (ya sea de éxito o de nick ocupado)
         cw.mostrarMensaje(msg);
     });
-};
-
- 
-
+  };
 
   // --- Lista de usuarios ---
   this.obtenerUsuarios = function () {
@@ -53,7 +48,7 @@ function ClienteRest () {
       });
   };
 
-  // --- Marcar usuario activo ---
+  // --- Usuario activo ---
   this.usuarioActivo = function (nick) {
     const url = "/usuarioActivo/" + encodeURIComponent(nick);
     return $.getJSON(url)
@@ -81,12 +76,12 @@ function ClienteRest () {
       });
   };
 
-  
+  // --- Versión alternativa de agregarUsuario (si la usas) ---
   this.agregarUsuario2 = function (nick) {
     return $.ajax({
       type: "GET",
       url: "/agregarUsuario/" + encodeURIComponent(nick),
-      dataType: "json" // no uses contentType en GET sin body
+      dataType: "json"
     })
     .then(function (data) {
       if (data && data.nick !== -1) {
@@ -104,5 +99,53 @@ function ClienteRest () {
       throw err;
     });
   };
-}
 
+  // --- Registrar usuario LOCAL (profesor) ---
+  this.registrarUsuario = function(email, password){ 
+    $.ajax({ 
+      type: 'POST', 
+      url: '/registrarUsuario',               
+      data: JSON.stringify({ 
+        email: email, 
+        password: password 
+      }), 
+      contentType: 'application/json',
+
+      success: function(data){ 
+        // En nuestro servidor, si todo va bien devuelve algo tipo: { nick: "correo@..." }
+        // Si usas la convención antigua de -1, también lo controlamos.
+         console.log("Respuesta /registrarUsuario:", data);
+        if (data && data.nick && data.nick != -1){              
+
+          console.log("Usuario "+data.nick+" ha sido registrado"); 
+
+          // Creamos cookie de sesión con el nick/email devuelto
+          $.cookie("nick", data.nick, { path: "/" }); 
+
+          cw.mostrarMensaje("Bienvenido al sistema, "+data.nick); 
+          cw.comprobarSesion();     
+        } 
+        else { 
+          console.log("El nick está ocupado o respuesta inválida", data); 
+          alert(data.msg || "No se ha podido registrar (nick ocupado)");
+        } 
+      }, 
+
+      error: function(xhr, textStatus, errorThrown){ 
+        console.log("Status: " + textStatus);  
+        console.log("Error: " + errorThrown);  
+
+        // Intentamos sacar un mensaje útil del servidor
+        let msg = "No se ha podido registrar.";
+        try {
+          const json = xhr.responseJSON;
+          if (json && json.msg) msg = json.msg;  // p.ej. "Email ya en uso"
+        } catch(e){}
+
+        alert(msg);   // 👈 AHORA SÍ ves algo en pantalla
+      }
+    }); 
+  };
+
+
+}

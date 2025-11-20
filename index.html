@@ -25,9 +25,18 @@
 
     <div class="container-fluid"> 
         <h3>Arquitectura Base</h3>
-        <div class="row">
+
+        <!-- (registro, au y mensajes) -->
+        <div class="container mt-3"> 
+            <h3>Sistema</h3> 
+            <div id="au"></div> 
+            <div id="registro"></div> 
+            <div id="msg"></div> 
+        </div>
+
+        <!-- Tarjeta usuarios -->
+        <div class="row mt-3">
             <div class="col-md-6">
-                <div id="au"></div>
             </div>
             <div class="col-md-6">
                 <div class="card">
@@ -48,8 +57,7 @@
             </div>
         </div>
     </div>
-
-    <!-- === GOOGLE ONE TAP FIX === -->
+    <!-- ONE TAP -->
     <div
       id="g_id_onload"
       data-client_id="%%GOOGLE_CLIENT_ID%%"
@@ -60,7 +68,8 @@
     <script>
     var rest = new ClienteRest();
     var cw = new ControlWeb();
-    cw.mostrarMenuInicio();
+    cw.comprobarSesion();
     </script>
+
 </body>
 </html>

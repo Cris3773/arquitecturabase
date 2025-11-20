@@ -59,11 +59,22 @@ app.post(
     res.redirect("/good");
   }
 );
+app.post("/registrarUsuario", function (request, response) {
+    sistema.registrarUsuario(request.body, function (res) {
+        if (res.ok) {
+            response.json({ nick: res.email });
+        } else {
+            response.status(400).json({ msg: res.msg });
+        }
+    });
+});
+
+
 
 
 app.get("/", (req, res) => {
   // Carga el index.html de la RAÍZ (cambiarl a /cliente/index.html)
-  let contenido = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+  let contenido = fs.readFileSync(path.join(__dirname, "cliente/index.html"), "utf8");
 
   // Sustituye client_id dinámicamente
   contenido = contenido.replace("%%GOOGLE_CLIENT_ID%%", process.env.GOOGLE_CLIENT_ID);
@@ -78,6 +89,9 @@ app.get("/", (req, res) => {
   res.send(contenido);
 });
 
+app.get("/registro.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "cliente/registro.html"));
+});
 
 app.get("/agregarUsuario/:nick", (req, res) => {
   const r = sistema.agregarUsuario(req.params.nick);
