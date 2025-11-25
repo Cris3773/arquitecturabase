@@ -100,52 +100,62 @@ function ClienteRest () {
     });
   };
 
-  // --- Registrar usuario LOCAL (profesor) ---
+  
   this.registrarUsuario = function(email, password){ 
-    $.ajax({ 
-      type: 'POST', 
-      url: '/registrarUsuario',               
-      data: JSON.stringify({ 
-        email: email, 
-        password: password 
-      }), 
-      contentType: 'application/json',
+  console.log("Voy a hacer POST /registrarUsuario", email, password);
 
-      success: function(data){ 
-        // En nuestro servidor, si todo va bien devuelve algo tipo: { nick: "correo@..." }
-        // Si usas la convención antigua de -1, también lo controlamos.
-         console.log("Respuesta /registrarUsuario:", data);
-        if (data && data.nick && data.nick != -1){              
+  $.ajax({ 
+    type: 'POST', 
+    url: window.location.origin + '/registrarUsuario',              
+    data: JSON.stringify({ 
+      email: email, 
+      password: password 
+    }), 
+    contentType: 'application/json',
 
-          console.log("Usuario "+data.nick+" ha sido registrado"); 
+    success: function(data){ 
+      console.log("Respuesta /registrarUsuario:", data);
 
-          // Creamos cookie de sesión con el nick/email devuelto
-          $.cookie("nick", data.nick, { path: "/" }); 
+      if (data && data.nick && data.nick != -1){              
+        console.log("Usuario "+data.nick+" ha sido registrado"); 
 
-          cw.mostrarMensaje("Bienvenido al sistema, "+data.nick); 
-          cw.comprobarSesion();     
-        } 
-        else { 
-          console.log("El nick está ocupado o respuesta inválida", data); 
-          alert(data.msg || "No se ha podido registrar (nick ocupado)");
-        } 
-      }, 
+   
 
-      error: function(xhr, textStatus, errorThrown){ 
-        console.log("Status: " + textStatus);  
-        console.log("Error: " + errorThrown);  
+        // Mensaje informativo
+        cw.mostrarMensaje(
+          "Te hemos enviado un correo a " + data.nick +
+          ". Por favor, confirma tu cuenta antes de iniciar sesión."
+        );
 
-        // Intentamos sacar un mensaje útil del servidor
-        let msg = "No se ha podido registrar.";
-        try {
-          const json = xhr.responseJSON;
-          if (json && json.msg) msg = json.msg;  // p.ej. "Email ya en uso"
-        } catch(e){}
+        //Volvemos a la pantalla de login
+        cw.mostrarLogin();     
+      } 
+      else { 
+        console.log("El nick está ocupado o respuesta inválida", data); 
+        alert(data.msg || "No se ha podido registrar (email ocupado)");
+      } 
+    }, 
 
-        alert(msg);   // 👈 AHORA SÍ ves algo en pantalla
-      }
-    }); 
-  };
+    error: function(xhr, textStatus, errorThrown){ 
+      console.log("Status: " + textStatus);  
+      console.log("Error: " + errorThrown);  
+
+      let msg = "No se ha podido registrar.";
+      try {
+        const json = xhr.responseJSON;
+        if (json && json.msg) msg = json.msg;
+      } catch(e){}
+
+      alert(msg);
+    }
+  }); 
+};
+this.cerrarSesion=function(){ 
+$.getJSON("/cerrarSesion",function(){    
+console.log("Sesión cerrada");   
+$.removeCookie("nick");      
+}); 
+} 
 
 
 }

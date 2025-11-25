@@ -89,7 +89,7 @@ function ControlWeb() {
         $("#mAU").remove();
         $("#fmLogin").remove();
 
-        $("#registro").load("registro.html #fmRegistro", function () {
+        $("#registro").load("cliente/registro.html #fmRegistro", function () {
 
             $("#btnRegistro").off("click").on("click", function (e) {
                 e.preventDefault();
@@ -169,10 +169,12 @@ function ControlWeb() {
     // --------------------------------------------------
     // Salir: borra cookie de sesión y vuelve al estado inicial
     // --------------------------------------------------
-    this.salir = function () {
-        $.removeCookie("nick", { path: "/" });
-        self.comprobarSesion();
-    };
+  this.salir=function(){ 
+    //localStorage.removeItem("nick"); 
+    $.removeCookie("nick"); 
+    location.reload(); 
+    rest.cerrarSesion(); 
+ }
 
     // --------------------------------------------------
     // (OPCIONAL) Formulario antiguo de nick + Google

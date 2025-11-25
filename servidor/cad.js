@@ -3,7 +3,7 @@ const ObjectId = require("mongodb").ObjectId;
 
 function CAD() {
     this.usuarios; // Colección de usuarios OAuth/Confirmados
-    this.usuariosLocal; // Colección de usuarios locales (si la usas)
+   
     this.conectado = false;
 
     this.conectar = async function (callback) {
@@ -12,25 +12,59 @@ function CAD() {
         let client = await mongo.connect(uri);  
         const database = client.db("sistema"); 
         cad.usuarios = database.collection("usuarios");
-        cad.usuariosLocal = database.collection("usuariosLocal"); 
+       
         cad.conectado = true;
         console.log("Conectado a Mongo Atlas (CAD)");
         callback(database);
     };
 
+    function actualizar(coleccion, obj, callback) {
+        coleccion.findOneAndUpdate(
+            { _id: ObjectId(obj._id) },
+            { $set: obj },
+            { upsert: false, returnDocument: "after", projection: { email: 1 } },
+            function (err, doc) {
+                if (err) { throw err; }
+                else {
+                    console.log("Elemento actualizado");
+                    callback({ email: doc.value.email });
+                }
+            }
+        );
+    } 
+    this.actualizarUsuario = function (usr, callback) {
+    const criterio = { email: usr.email };
+
+    this.usuarios.updateOne(
+        criterio,
+        { $set: usr },
+        function (err, res) {
+            if (err) {
+                console.log("Error actualizando usuario:", err);
+                callback(null);
+            } else {
+                callback(usr);
+            }
+        }
+    );
+    };   
+
+
+
     // --- FUNCIONES PRIVADAS (usadas por los métodos públicos) ---
 
     // Función privada: Busca un documento y devuelve el primero o 'undefined'
-    function buscar(coleccion,criterio,callback){ 
-        coleccion.find(criterio).toArray(function(error,usuarios){ 
-            if (usuarios.length==0){ 
-                callback(undefined);              
-            } 
-            else{ 
-                callback(usuarios[0]); 
-            } 
-        }); 
+function buscar(coleccion, criterio, callback) {
+        coleccion.find(criterio).toArray(function (error, usuarios) {
+            if (usuarios.length == 0) {
+                callback(undefined);
+            }
+            else {
+                callback(usuarios[0]);
+            }
+        });
     } 
+
     
     // Función privada: Inserta un documento y devuelve el elemento insertado
     function insertar(coleccion,elemento,callback){ 
@@ -47,53 +81,33 @@ function CAD() {
 
     // Método público: busca en la colección 'usuarios'
 // Espera a que la conexión esté lista (this.usuarios definido)
-this.buscarUsuario = function (criterio, callback) {
-    const cad = this;
-    const MAX_INTENTOS = 50;
-    let intentos = 0;
-
-    function intentar() {
-        if (cad.usuarios) {
-            // Ya tenemos la colección -> usamos la función privada 'buscar'
-            buscar(cad.usuarios, criterio, callback);
-        } else if (intentos < MAX_INTENTOS) {
-            intentos++;
-            setTimeout(intentar, 100); // reintenta en 100 ms
-        } else {
-            console.error("BD no conectada en buscarUsuario");
-            callback(undefined); // se comporta como "usuario no encontrado"
-        }
+   this.buscarUsuario = function (obj, callback) {
+        buscar(this.usuarios, obj, callback);
     }
-
-    intentar();
-};
 
         // Método público: inserta en la colección 'usuarios'
         // También espera a que la conexión esté lista
-        this.insertarUsuario = function (usuario, callback) {
-            const cad = this;
-            const MAX_INTENTOS = 50;
-            let intentos = 0;
+this.insertarUsuario = function (usuario, callback) {
+    const cad = this;
 
-            function intentar() {
-                if (cad.usuarios) {
-                    // Usamos la función privada 'insertar'
-                    insertar(cad.usuarios, usuario, function (elemento) {
-                        // Adaptamos el resultado al formato que espera index.js:
-                        // res = { ok: true, email: ... }
-                        callback({ ok: true, email: elemento.email });
-                    });
-                } else if (intentos < MAX_INTENTOS) {
-                    intentos++;
-                    setTimeout(intentar, 100);
-                } else {
-                    console.error("BD no conectada en insertarUsuario");
-                    callback({ ok: false, msg: "BD no conectada" });
-                }
-            }
+    // 1. Verificar si la colección está lista (asumiendo que 'conectar' ya se ejecutó)
+    if (cad.usuarios) {
+        console.log("Insertando usuario en MongoDB:", usuario.email);
+        
+        // 2. Llamar a la función privada 'insertar' (que sí existe)
+        insertar(cad.usuarios, usuario, function (elemento) {
+            console.log("Usuario insertado correctamente:", elemento.email);
+            // El formato de respuesta que espera el modelo:
+            callback({ ok: true, email: elemento.email });
+        });
+    } else {
+        // 3. Si por alguna razón la colección no está lista, fallar inmediatamente
+        console.error("BD no conectada en insertarUsuario. Se aborta la inserción.");
+        callback({ ok: false, msg: "BD no conectada" });
+    }
+};
 
-            intentar();
-        };
+
 
 
     // --- OTROS MÉTODOS EXISTENTES ---
@@ -141,13 +155,13 @@ this.buscarUsuario = function (criterio, callback) {
         }
     }
     
-    // Nota: Este método ya existe en tu archivo y trabaja con 'usuariosLocal'. 
+    // Nota: Este método ya existe en tu archivo . 
     // Lo mantengo aquí pero si quieres usar una sola colección ('usuarios') para todos, 
     // tendrías que refactorizar el código de registro local en index.js.
     this.registrarUsuario = async function (usr, callback) {
     // usr = { email, password }
-    if (!this.usuariosLocal) {
-        console.error("Falta colección usuariosLocal");
+    if (!this.usuarios) {
+        console.error("Falta colección usuarios");
         callback({ ok: false, msg: "BD no conectada" });
         return;
     }
