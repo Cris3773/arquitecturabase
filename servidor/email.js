@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const gv = require('./gestorVariables.js'); 
 
 // ---------------------------------------
 // URL A USAR
@@ -10,21 +11,21 @@ const url = "http://localhost:3000/";
 // Modo PRODUCCIÓN (Cloud Run)
 // const url = "https://arquitecturabase-582016504675.europe-north2.run.app/";
 
+let transporter;
 
+gv.obtenerOptions(function(res){ 
+    let options = res;
 
-// Configuración del proveedor Gmail
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'cristilou965@gmail.com',         
-        pass: 'sexyxqglbofkigxa'         
-    }
+    transporter = nodemailer.createTransport({ 
+        service: 'gmail', 
+        auth: options 
+    }); 
 });
 
 // ENVIAR EMAIL DE CONFIRMACIÓN
 module.exports.enviarEmail = async function (direccion, key, men) {
     const result = await transporter.sendMail({
-        from: 'cristilou965@gmail.com',
+        from: 'cristilou965@gmail.com',   // o mejor: options.user si lo pasas también
         to: direccion,
         subject: men,
         text: 'Pulsa aquí para confirmar cuenta',

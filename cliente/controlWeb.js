@@ -53,7 +53,7 @@ function ControlWeb() {
         $("#mAU").remove();
         $("#fmRegistro").remove();
 
-        $("#registro").load("./cliente/login.html #fmLogin", function () {
+        $("#registro").load("/cliente/login.html #fmLogin", function () {
 
             // Botón INICIAR SESIÓN
             $("#btnLogin").off("click").on("click", function (e) {
@@ -66,9 +66,9 @@ function ControlWeb() {
                     // Cuando tengas implementado el login local, descomenta:
                     // rest.loginUsuario(email, pwd);
 
-                    alert("Aquí llamaríamos a rest.loginUsuario(" + email + ", ...)");
+                    rest.agregarUsuario(email);
                 } else {
-                    alert("Introduce email y contraseña");
+                    console.log("Introduce email y contraseña");
                 }
             });
 
@@ -89,7 +89,7 @@ function ControlWeb() {
         $("#mAU").remove();
         $("#fmLogin").remove();
 
-        $("#registro").load("cliente/registro.html #fmRegistro", function () {
+        $("#registro").load("/cliente/registro.html #fmRegistro", function () {
 
             $("#btnRegistro").off("click").on("click", function (e) {
                 e.preventDefault();
@@ -100,14 +100,21 @@ function ControlWeb() {
                 var pwd       = $("#pwd").val().trim();
                 console.log("CLICK REGISTRAR", { apellidos, nombre, email, pwd });
                 if (apellidos && nombre && email && pwd) {
-                    alert("Voy a registrar: " + email);   // 👈 prueba
+                    console.log("Voy a registrar: " + email);   // 👈 prueba
                     rest.registrarUsuario(email, pwd);
                 } else {
-                    alert("Rellena todos los campos");
+                    console.log("Rellena todos los campos");
                 }
             });
         });
     };
+    this.mostrarModal=function(m){ 
+        $('#mBody').html("");
+        let cadena="<div id='msg'>"+ m +"</div>"; 
+        $('#mBody').append(cadena) 
+        $('#miModal').modal('show'); 
+ 
+    } 
 
     // --------------------------------------------------
     // Lista de usuarios (columna derecha)
@@ -156,9 +163,9 @@ function ControlWeb() {
         rest.usuarioActivo(nick)
             .then(function (resultado) {
                 if (resultado.activo) {
-                    alert("El usuario " + nick + " está activo");
+                console.log("El usuario " + nick + " está activo");
                 } else {
-                    alert("El usuario " + nick + " no existe");
+                    console.log("El usuario " + nick + " no existe");
                 }
             })
             .catch(function (error) {
@@ -206,7 +213,7 @@ function ControlWeb() {
             if (nick) {
                 rest.agregarUsuario(nick);
             } else {
-                alert("Por favor, introduce un nick antes de agregar.");
+                console.log("Por favor, introduce un nick antes de agregar.");
             }
         });
     };

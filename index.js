@@ -5,11 +5,17 @@ const fs = require("fs");
 const express = require("express");
 const path = require("path");
 const modelo = require("./servidor/modelo.js");
+const moduloWS = require("./servidor/servidorWS.js");
 require("dotenv").config();
 require("./servidor/passport-setup.js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const httpServer = require("http").Server(app);
+const { Server } = require("socket.io");
+const io = new Server(httpServer);
+const wsServer = new moduloWS.WSServer(io);
+wsServer.lanzarServer();
 
 app.use((req, res, next) => {
   console.log("REQ:", req.method, req.url);
@@ -212,4 +218,6 @@ sistema.eliminarUsuario(nick);
 // ======================================================
 //              ARRANCAR SERVIDOR
 // ======================================================
-app.listen(PORT, "0.0.0.0", () => console.log(`Listening on ${PORT}`));
+httpServer.listen(PORT, "0.0.0.0", () =>
+  console.log(`Listening on ${PORT}`)
+);

@@ -19,6 +19,8 @@ function ClienteRest () {
         }
 
         cw.mostrarMensaje(msg);
+        cw.mostrarMensaje("El usuario no existe o el nick es incorrecto");
+        cw.mostrarModal("No se ha podido iniciar sesión");
     });
   };
 
@@ -132,7 +134,8 @@ function ClienteRest () {
       } 
       else { 
         console.log("El nick está ocupado o respuesta inválida", data); 
-        alert(data.msg || "No se ha podido registrar (email ocupado)");
+        cw.mostrarMensaje(data.msg || "Hay un usuario registrado con ese email");
+        cw.mostrarModal("No se ha podido registrar el usuario");
       } 
     }, 
 
@@ -146,8 +149,10 @@ function ClienteRest () {
         if (json && json.msg) msg = json.msg;
       } catch(e){}
 
-      alert(msg);
+      cw.mostrarMensaje(msg);
+      cw.mostrarModal("No se ha podido registrar el usuario");
     }
+
   }); 
 };
 this.cerrarSesion=function(){ 
