@@ -164,6 +164,15 @@ function Usuario(nick) {
   this.nick = nick;
 }
 
+function Partida(codigo){
+  this.codigo = codigo;
+  this.jugadores = [];
+  this.maxJug = 2;
+}
+
+module.exports.Partida = Partida;
+
+
 // EXPORTA para Node
 module.exports.Sistema = Sistema;
 
