@@ -6,6 +6,7 @@ function Sistema(test) {
   this.usuarios = {};
   this.cad=new datos.CAD();
   let self = this;
+  this.partidas = {};
   this.cad.conectar(function(db){ 
   console.log("Conectado a Mongo Atlas"); 
   }); 
@@ -126,12 +127,6 @@ this.registrarUsuario = function (obj, callback) {
 };
 
 
-
-
-
-
-
-
   this.obtenerUsuarios = function () {
     return this.usuarios;
   };
@@ -158,16 +153,165 @@ this.registrarUsuario = function (obj, callback) {
   this.numeroUsuarios = function () {
     return Object.keys(this.usuarios).length;
   };
+
+  this.obtenerCodigo = function(){
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  this.crearPartida = function(email){
+  // Buscar usuario por email
+  let usuario = this.usuarios[email];
+
+  // Si el usuario no existe, lo creamos
+  if (!usuario){
+    this.agregarUsuario(email);
+    usuario = this.usuarios[email];
+  }
+
+  if (!usuario){
+    return { codigo: -1 }; // usuario no existe
+  }
+
+  // Obtener código único
+  let codigo = this.obtenerCodigo();
+
+  // Crear partida con propietario
+  let partida = new Partida(codigo, email);
+
+  // Añadir usuario como jugador
+  partida.jugadores.push(usuario);
+
+  // Guardar la partida en el sistema
+  this.partidas[codigo] = partida;
+
+  return { codigo: partida.codigo, numJugadores: partida.jugadores.length, iniciada: partida.iniciada };
+}
+
+  this.unirAPartida = function(email, codigo){
+
+    let usuario = this.usuarios[email];
+
+    // Si el usuario no existe, lo creamos
+    if (!usuario){
+      this.agregarUsuario(email);
+      usuario = this.usuarios[email];
+    }
+
+    let partida = this.partidas[codigo];
+
+    if (!usuario || !partida){
+      return { ok: false, msg: "Usuario o partida no existe" };
+    }
+
+    if (partida.jugadores.length >= partida.maxJug){
+      return { ok: false, msg: "La partida está completa" };
+    }
+
+    // Verificar si el usuario ya está en la partida
+    if (partida.jugadores.some(j => j.nick === email)){
+      return { ok: false, msg: "Ya estás en esta partida" };
+    }
+
+    partida.jugadores.push(usuario);
+
+    return { ok: true, partida: partida };
+  }
+
+  this.obtenerPartidasDisponibles = function(){
+  let lista = [];
+
+  console.log("obtenerPartidasDisponibles - Partidas almacenadas:", Object.keys(this.partidas));
+
+  for (let codigo in this.partidas){
+    let partida = this.partidas[codigo];
+
+    console.log("Revisando partida:", codigo, "iniciada:", partida.iniciada);
+
+    // comprobar si la partida NO ha iniciado
+    if (!partida.iniciada){
+
+      // obtener el email del creador (primer jugador)
+      let creador = partida.jugadores[0].nick;
+      
+      // obtener lista de nicks de jugadores
+      let jugadores = partida.jugadores.map(j => j.nick);
+
+      // crear objeto JSON con los datos
+      let obj = {
+        codigo: codigo,
+        creador: creador,
+        propietario: partida.propietario,
+        numJugadores: partida.jugadores.length,
+        maxJug: partida.maxJug,
+        jugadores: jugadores
+      };
+
+      // meter el objeto en la lista
+      lista.push(obj);
+    }
+  }
+
+  console.log("Partidas disponibles a devolver:", lista);
+  return lista;
+}
+
+  this.iniciarPartida = function(email, codigo){
+    let partida = this.partidas[codigo];
+
+    if (!partida){
+      return { ok: false, msg: "Partida no existe" };
+    }
+
+    // Solo el propietario puede iniciar
+    if (partida.propietario !== email){
+      return { ok: false, msg: "Solo el propietario puede iniciar" };
+    }
+
+    // Necesita al menos 2 jugadores
+    if (partida.jugadores.length < 2){
+      return { ok: false, msg: "Se necesita al menos 2 jugadores" };
+    }
+
+    partida.iniciada = true;
+    return { ok: true, msg: "Partida iniciada" };
+  }
+
+  this.abandonarPartida = function(email, codigo){
+    let partida = this.partidas[codigo];
+
+    if (!partida){
+      return { ok: false, msg: "Partida no existe" };
+    }
+
+    // No se puede abandonar si ya comenzó
+    if (partida.iniciada){
+      return { ok: false, msg: "No puedes abandonar una partida en curso" };
+    }
+
+    // Buscar y eliminar el usuario
+    partida.jugadores = partida.jugadores.filter(j => j.nick !== email);
+
+    // Si no quedan jugadores, eliminar la partida
+    if (partida.jugadores.length === 0){
+      delete this.partidas[codigo];
+    }
+
+    return { ok: true, msg: "Abandonaste la partida" };
+  }
+
+
 }
 
 function Usuario(nick) {
   this.nick = nick;
 }
 
-function Partida(codigo){
+function Partida(codigo, propietario){
   this.codigo = codigo;
+  this.propietario = propietario;
   this.jugadores = [];
   this.maxJug = 2;
+  this.iniciada = false;
 }
 
 module.exports.Partida = Partida;

@@ -214,6 +214,33 @@ sistema.eliminarUsuario(nick);
 } 
 }); 
 
+app.get("/obtenerPartidas", haIniciado, (req, res) => {
+  console.log("REQ obtenerPartidas - usuarios en sistema:", Object.keys(sistema.obtenerUsuarios()));
+  console.log("REQ obtenerPartidas - partidas en sistema:", Object.keys(sistema.partidas));
+  const partidas = sistema.obtenerPartidasDisponibles();
+  res.json(partidas);
+});
+
+app.get("/crearPartida/:nick", haIniciado, (req, res) => {
+  const resultado = sistema.crearPartida(req.params.nick);
+  res.json(resultado);
+});
+
+app.get("/unirseLaPartida/:nick/:codigo", haIniciado, (req, res) => {
+  const resultado = sistema.unirAPartida(req.params.nick, req.params.codigo);
+  res.json(resultado);
+});
+
+app.get("/iniciarPartida/:nick/:codigo", haIniciado, (req, res) => {
+  const resultado = sistema.iniciarPartida(req.params.nick, req.params.codigo);
+  res.json(resultado);
+});
+
+app.get("/abandonarPartida/:nick/:codigo", haIniciado, (req, res) => {
+  const resultado = sistema.abandonarPartida(req.params.nick, req.params.codigo);
+  res.json(resultado);
+});
+
 
 // ======================================================
 //              ARRANCAR SERVIDOR

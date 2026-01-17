@@ -155,6 +155,76 @@ function ClienteRest () {
 
   }); 
 };
+
+// --- Obtener partidas disponibles ---
+this.obtenerPartidas = function () {
+  return $.getJSON("/obtenerPartidas")
+    .then(function (data) {
+      console.log("obtenerPartidas:", data);
+      return data;
+    })
+    .catch(function (err) {
+      console.error("obtenerPartidas error:", err);
+      throw err;
+    });
+};
+
+// --- Unirse a partida ---
+this.unirseLaPartida = function (nick, codigo) {
+  const url = "/unirseLaPartida/" + encodeURIComponent(nick) + "/" + encodeURIComponent(codigo);
+  return $.getJSON(url)
+    .then(function (data) {
+      console.log("unirseLaPartida(" + nick + ", " + codigo + "):", data);
+      return data;
+    })
+    .catch(function (err) {
+      console.error("unirseLaPartida error:", err);
+      throw err;
+    });
+};
+
+// --- Crear partida ---
+this.crearPartida = function (nick) {
+  const url = "/crearPartida/" + encodeURIComponent(nick);
+  return $.getJSON(url)
+    .then(function (data) {
+      console.log("crearPartida(" + nick + "):", data);
+      return data;
+    })
+    .catch(function (err) {
+      console.error("crearPartida error:", err);
+      throw err;
+    });
+};
+
+// --- Iniciar partida ---
+this.iniciarPartida = function (nick, codigo) {
+  const url = "/iniciarPartida/" + encodeURIComponent(nick) + "/" + encodeURIComponent(codigo);
+  return $.getJSON(url)
+    .then(function (data) {
+      console.log("iniciarPartida(" + nick + ", " + codigo + "):", data);
+      return data;
+    })
+    .catch(function (err) {
+      console.error("iniciarPartida error:", err);
+      throw err;
+    });
+};
+
+// --- Abandonar partida ---
+this.abandonarPartida = function (nick, codigo) {
+  const url = "/abandonarPartida/" + encodeURIComponent(nick) + "/" + encodeURIComponent(codigo);
+  return $.getJSON(url)
+    .then(function (data) {
+      console.log("abandonarPartida(" + nick + ", " + codigo + "):", data);
+      return data;
+    })
+    .catch(function (err) {
+      console.error("abandonarPartida error:", err);
+      throw err;
+    });
+};
+
 this.cerrarSesion=function(){ 
 $.getJSON("/cerrarSesion",function(){    
 console.log("Sesión cerrada");   

@@ -28,6 +28,12 @@ function ControlWeb() {
 
             $("#linkSalir").show();
             $("#linkInicio").hide();
+            
+            // Mostrar partidas cuando hay sesión
+            var card = $("#listaPartidas").closest(".card");
+            if (card.length) {
+                card.show();
+            }
         } else {
             // No hay sesión: mostramos LOGIN
             $("#registro").empty();
@@ -38,10 +44,19 @@ function ControlWeb() {
 
             $("#linkSalir").hide();
             $("#linkInicio").show();
+            
+            // Ocultar partidas si no hay sesión
+            var card = $("#listaPartidas").closest(".card");
+            if (card.length) {
+                card.hide();
+            }
         }
 
         // A la derecha siempre mostramos la lista de usuarios
         self.actualizarListaUsuarios();
+        
+        // También actualizar lista de partidas
+        self.actualizarListaPartidas();
     };
 
     // --------------------------------------------------
@@ -172,6 +187,178 @@ function ControlWeb() {
                 console.error("Error al buscar usuario:", error);
             });
     };
+
+    // --------------------------------------------------
+// Lista de partidas disponibles
+// --------------------------------------------------
+this.actualizarListaPartidas = function () {
+  var nick = $.cookie("nick");
+  
+  // Limpiar la lista
+  var lista = $("#listaPartidas");
+  lista.empty();
+  
+  // Solo obtener si hay sesión
+  if (!nick) {
+    lista.append('<li class="list-group-item">Inicia sesión para ver partidas</li>');
+    return;
+  }
+  
+  rest.obtenerPartidas()
+    .then(function (partidas) {
+      lista.empty();
+
+      if (partidas.length === 0) {
+        lista.append('<li class="list-group-item">No hay partidas disponibles</li>');
+      } else {
+        for (var i = 0; i < partidas.length; i++) {
+          var partida = partidas[i];
+          var esPropietario = (nick === partida.propietario);
+          var estaEnPartida = partida.jugadores && partida.jugadores.includes(nick);
+          
+          var botones = '';
+          if (esPropietario) {
+            // Botones para el propietario
+            botones = '<div class="btn-group btn-group-sm" role="group">' +
+              '<button class="btn btn-primary" onclick="cw.iniciarPartida(\'' + partida.codigo + '\')" ' + 
+              (partida.numJugadores < 2 ? 'disabled' : '') + '>' +
+                '<i class="bi bi-play"></i> Jugar' +
+              '</button>' +
+              '<button class="btn btn-danger" onclick="cw.abandonarPartida(\'' + partida.codigo + '\')">' +
+                '<i class="bi bi-x"></i> Abandonar' +
+              '</button>' +
+            '</div>';
+          } else if (estaEnPartida) {
+            // Botón para usuarios que ya están en la partida
+            botones = '<button class="btn btn-danger btn-sm" onclick="cw.abandonarPartida(\'' + partida.codigo + '\')">' +
+              '<i class="bi bi-x"></i> Abandonar' +
+            '</button>';
+          } else {
+            // Botón para otros usuarios que no están en la partida
+            var deshabilitado = partida.numJugadores >= partida.maxJug ? 'disabled' : '';
+            botones = '<button class="btn btn-success btn-sm" onclick="cw.unirseLaPartida(\'' + partida.codigo + '\')" ' + deshabilitado + '>' +
+              '<i class="bi bi-door-open"></i> Unirse' +
+            '</button>';
+          }
+          
+          lista.append(
+            '<li class="list-group-item d-flex justify-content-between align-items-center">' +
+              '<span>Partida: ' + partida.codigo + '<br><small>Jugadores: ' + partida.numJugadores + '/' + partida.maxJug + '</small></span>' +
+              botones +
+            '</li>'
+          );
+        }
+      }
+
+      $("#numPartidas").text(partidas.length);
+      
+      // Agregar evento al botón crear partida
+      $("#btnCrearPartida").off("click").on("click", function () {
+        self.crearPartida();
+      });
+    })
+    .catch(function (error) {
+      console.error("Error al obtener partidas:", error);
+      lista.empty();
+      lista.append('<li class="list-group-item text-danger">Error al cargar partidas</li>');
+    });
+};
+
+// --------------------------------------------------
+// Unirse a una partida
+// --------------------------------------------------
+this.unirseLaPartida = function (codigo) {
+  var nick = $.cookie("nick");
+  if (!nick) {
+    console.log("No hay usuario logueado");
+    return;
+  }
+  
+  rest.unirseLaPartida(nick, codigo)
+    .then(function (resultado) {
+      if (resultado.ok) {
+        self.mostrarMensaje("Te has unido a la partida " + codigo);
+        self.actualizarListaPartidas();
+      } else {
+        self.mostrarMensaje("Error: " + resultado.msg);
+      }
+    })
+    .catch(function (error) {
+      console.error("Error al unirse a la partida:", error);
+    });
+};
+
+// --------------------------------------------------
+// Crear partida
+// --------------------------------------------------
+this.crearPartida = function () {
+  var nick = $.cookie("nick");
+  if (!nick) {
+    self.mostrarMensaje("Debes iniciar sesión para crear una partida");
+    return;
+  }
+  
+  rest.crearPartida(nick)
+    .then(function (resultado) {
+      if (resultado && resultado.codigo && resultado.codigo !== -1) {
+        self.mostrarMensaje("Partida creada: " + resultado.codigo);
+        self.actualizarListaPartidas();
+      } else {
+        self.mostrarMensaje("Error al crear la partida");
+      }
+    })
+    .catch(function (error) {
+      console.error("Error al crear partida:", error);
+    });
+};
+
+// --------------------------------------------------
+// Iniciar partida
+// --------------------------------------------------
+this.iniciarPartida = function (codigo) {
+  var nick = $.cookie("nick");
+  if (!nick) {
+    self.mostrarMensaje("Debes iniciar sesión");
+    return;
+  }
+  
+  rest.iniciarPartida(nick, codigo)
+    .then(function (resultado) {
+      if (resultado.ok) {
+        self.mostrarMensaje("Partida iniciada");
+        self.actualizarListaPartidas();
+      } else {
+        self.mostrarMensaje("Error: " + resultado.msg);
+      }
+    })
+    .catch(function (error) {
+      console.error("Error al iniciar partida:", error);
+    });
+};
+
+// --------------------------------------------------
+// Abandonar partida
+// --------------------------------------------------
+this.abandonarPartida = function (codigo) {
+  var nick = $.cookie("nick");
+  if (!nick) {
+    self.mostrarMensaje("Debes iniciar sesión");
+    return;
+  }
+  
+  rest.abandonarPartida(nick, codigo)
+    .then(function (resultado) {
+      if (resultado.ok) {
+        self.mostrarMensaje(resultado.msg);
+        self.actualizarListaPartidas();
+      } else {
+        self.mostrarMensaje("Error: " + resultado.msg);
+      }
+    })
+    .catch(function (error) {
+      console.error("Error al abandonar partida:", error);
+    });
+};
 
     // --------------------------------------------------
     // Salir: borra cookie de sesión y vuelve al estado inicial
