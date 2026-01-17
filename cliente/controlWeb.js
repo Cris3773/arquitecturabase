@@ -3,6 +3,7 @@ function ControlWeb() {
     this.intervaloPartidas = null;
     this.codigoPartidaActual = null;  // Guardar partida actual en juego
     this.intervaloVerificarPartida = null; // Polling para verificar partida en curso
+    this.intervaloActualizarTablero = null; // Polling para actualizar tablero durante el juego
 
     // --------------------------------------------------
     // Mostrar un mensaje de información en la zona #au
@@ -443,6 +444,10 @@ this.abandonarPartida = function (codigo) {
       clearInterval(this.intervaloVerificarPartida);
       this.intervaloVerificarPartida = null;
     }
+    if (this.intervaloActualizarTablero) {
+      clearInterval(this.intervaloActualizarTablero);
+      this.intervaloActualizarTablero = null;
+    }
     $.removeCookie("nick"); 
     location.reload(); 
     rest.cerrarSesion(); 
@@ -504,6 +509,11 @@ this.mostrarTablero = function (codigo) {
         }
         estadoDiv.html(estadoHtml);
         
+        // Iniciar polling automático si no está activo
+        if (!self.intervaloActualizarTablero) {
+          self.iniciarActualizacionAutomaticaTablero(codigo);
+        }
+        
         return;
       }
 
@@ -544,6 +554,9 @@ this.mostrarTablero = function (codigo) {
       html += '</div></div>';
       
       $("#au").html(html);
+      
+      // Iniciar polling automático del tablero
+      self.iniciarActualizacionAutomaticaTablero(codigo);
     })
     .catch(function (error) {
       console.error("Error al obtener partida:", error);
@@ -585,6 +598,9 @@ this.verificarPartidaEnCurso = function () {
 this.volverAlListado = function () {
   this.codigoPartidaActual = null;
   
+  // Detener polling automático del tablero
+  this.detenerActualizacionAutomaticaTablero();
+  
   // Pausar la verificación de partida en curso para evitar que vuelva a mostrar el tablero
   if (this.intervaloVerificarPartida) {
     clearInterval(this.intervaloVerificarPartida);
@@ -604,6 +620,80 @@ this.volverAlListado = function () {
 };
 
 // --------------------------------------------------
+// Actualizar tablero en tiempo real vía WebSocket
+// --------------------------------------------------
+this.actualizarTableroEnTiempoReal = function (data) {
+  // Actualizar celdas del tablero
+  if (data.tablero) {
+    for (var i = 0; i < 3; i++) {
+      for (var j = 0; j < 3; j++) {
+        var valor = data.tablero[i][j];
+        var simbolo = valor === 0 ? '' : (valor === 1 ? 'X' : 'O');
+        var cellId = "celda-" + i + "-" + j;
+        $("#" + cellId).text(simbolo);
+      }
+    }
+  }
+  
+  // Actualizar estado del juego
+  var estadoDiv = $("#estado-juego");
+  if (estadoDiv.length > 0) {
+    var estadoHtml = '';
+    if (data.ganador) {
+      if (data.ganador === 'empate') {
+        estadoHtml = '<p class="text-warning mt-3">¡Empate!</p>';
+      } else {
+        estadoHtml = '<p class="text-success mt-3">¡Ganador: Jugador ' + data.ganador + '!</p>';
+      }
+    } else {
+      estadoHtml = '<p class="mt-3">Turno: Jugador ' + data.turno + '</p>';
+    }
+    estadoDiv.html(estadoHtml);
+  }
+};
+
+// --------------------------------------------------
+// Polling automático para actualizar tablero durante el juego
+// --------------------------------------------------
+this.iniciarActualizacionAutomaticaTablero = function (codigo) {
+  // Detener polling anterior si existe
+  if (this.intervaloActualizarTablero) {
+    clearInterval(this.intervaloActualizarTablero);
+  }
+  
+  // Iniciar nuevo polling cada 500ms
+  this.intervaloActualizarTablero = setInterval(function() {
+    if (self.codigoPartidaActual === codigo) {
+      rest.obtenerTodasLasPartidas()
+        .then(function(partidas) {
+          var partida = partidas.find(p => p.codigo === codigo);
+          if (partida && partida.iniciada) {
+            var data = {
+              tablero: partida.tablero,
+              turno: partida.turno,
+              ganador: partida.ganador
+            };
+            self.actualizarTableroEnTiempoReal(data);
+          }
+        })
+        .catch(function(error) {
+          console.log("Error en polling de tablero:", error);
+        });
+    }
+  }, 500); // Actualizar cada 500ms
+};
+
+// --------------------------------------------------
+// Detener polling automático del tablero
+// --------------------------------------------------
+this.detenerActualizacionAutomaticaTablero = function () {
+  if (this.intervaloActualizarTablero) {
+    clearInterval(this.intervaloActualizarTablero);
+    this.intervaloActualizarTablero = null;
+  }
+};
+
+// --------------------------------------------------
 // Hacer movimiento en tablero
 // --------------------------------------------------
 this.hacerMovimiento = function (codigo, fila, columna) {
@@ -613,7 +703,14 @@ this.hacerMovimiento = function (codigo, fila, columna) {
   rest.hacerMovimiento(nick, codigo, fila, columna)
     .then(function (resultado) {
       if (resultado.ok) {
-        self.mostrarTablero(codigo);
+        // Actualizar el tablero inmediatamente con los datos del servidor
+        var data = {
+          tablero: resultado.tablero,
+          turno: resultado.turno,
+          ganador: resultado.ganador
+        };
+        self.actualizarTableroEnTiempoReal(data);
+        console.log("Movimiento realizado y tablero actualizado localmente");
       } else {
         self.mostrarMensaje("Error: " + resultado.msg);
       }

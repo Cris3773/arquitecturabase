@@ -56,11 +56,11 @@ function ClienteWS(){
     });
 
     this.socket.on("movimientoRealizado", function(data){
-      console.log("Movimiento realizado en partida:", data.codigo);
+      console.log("Movimiento realizado en partida (WebSocket):", data.codigo);
       if (typeof controlWeb !== 'undefined') {
-        // Si estamos viendo esa partida, actualizar el tablero
+        // Si estamos viendo esa partida, actualizar el tablero directamente
         if (controlWeb.codigoPartidaActual === data.codigo) {
-          controlWeb.mostrarTablero(data.codigo);
+          controlWeb.actualizarTableroEnTiempoReal(data);
         }
       }
     });
