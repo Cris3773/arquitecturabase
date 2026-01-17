@@ -14,8 +14,6 @@ const PORT = process.env.PORT || 3000;
 const httpServer = require("http").Server(app);
 const { Server } = require("socket.io");
 const io = new Server(httpServer);
-const wsServer = new moduloWS.WSServer(io);
-wsServer.lanzarServer();
 
 app.use((req, res, next) => {
   console.log("REQ:", req.method, req.url);
@@ -24,6 +22,8 @@ app.use((req, res, next) => {
 
 // ----- MODELO -----
 let sistema = new modelo.Sistema({ test: false });
+const wsServer = new moduloWS.WSServer(io, sistema);
+wsServer.lanzarServer();
 
 // ----- ESTRATEGIA LOCAL (usa sistema.loginUsuario) -----
 const LocalStrategy = require("passport-local").Strategy;
@@ -170,7 +170,7 @@ app.get("/", (req, res) => {
 
   contenido = contenido.replace(
     "%%GOOGLE_ONETAP_CALLBACK%%",
-    process.env.BASE_URL + "/oneTap/callback"
+    process.env.BASE_URL + "oneTap/callback"
   );
 
   res.setHeader("Content-Type", "text/html");
@@ -268,6 +268,17 @@ app.get("/hacerMovimiento/:nick/:codigo/:fila/:columna", haIniciado, (req, res) 
   if (resultado.ok) {
     const partida = sistema.partidas[req.params.codigo];
     wsServer.notificarMovimiento(req.params.codigo, partida.tablero, partida.turno, partida.ganador, partida.celdasGanadoras);
+    if (resultado.finalizada) {
+      wsServer.notificarFinPartida(req.params.codigo, partida.ganador, partida.celdasGanadoras, partida.marcador);
+    }
+  }
+  res.json(resultado);
+});
+
+app.get("/reiniciarPartida/:nick/:codigo", haIniciado, (req, res) => {
+  const resultado = sistema.reiniciarPartida(req.params.nick, req.params.codigo);
+  if (resultado.ok) {
+    wsServer.notificarReinicioPartida(req.params.codigo, resultado.tablero, resultado.turno, resultado.ganador, resultado.celdasGanadoras);
   }
   res.json(resultado);
 });

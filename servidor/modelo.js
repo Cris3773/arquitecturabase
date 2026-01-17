@@ -180,6 +180,7 @@ this.registrarUsuario = function (obj, callback) {
 
   // Añadir usuario como jugador
   partida.jugadores.push(usuario);
+  partida.jugadoresActivos = { 1: true, 2: false };
 
   // Guardar la partida en el sistema
   this.partidas[codigo] = partida;
@@ -203,6 +204,14 @@ this.registrarUsuario = function (obj, callback) {
       return { ok: false, msg: "Usuario o partida no existe" };
     }
 
+    if (partida.enJuego){
+      return { ok: false, msg: "La partida ya ha comenzado" };
+    }
+
+    if (partida.cerrada){
+      return { ok: false, msg: "La partida está cerrada" };
+    }
+
     if (partida.jugadores.length >= partida.maxJug){
       return { ok: false, msg: "La partida está completa" };
     }
@@ -213,6 +222,7 @@ this.registrarUsuario = function (obj, callback) {
     }
 
     partida.jugadores.push(usuario);
+    partida.jugadoresActivos[2] = true;
 
     return { ok: true, partida: partida };
   }
@@ -228,7 +238,7 @@ this.registrarUsuario = function (obj, callback) {
     console.log("Revisando partida:", codigo, "iniciada:", partida.iniciada);
 
     // comprobar si la partida NO ha iniciado
-    if (!partida.iniciada){
+    if (!partida.enJuego && !partida.cerrada){
 
       // obtener el email del creador (primer jugador)
       let creador = partida.jugadores[0].nick;
@@ -272,10 +282,13 @@ this.registrarUsuario = function (obj, callback) {
         maxJug: partida.maxJug,
         jugadores: jugadores,
         iniciada: partida.iniciada,
+        enJuego: partida.enJuego,
         tablero: partida.tablero,
         turno: partida.turno,
         ganador: partida.ganador,
-        celdasGanadoras: partida.celdasGanadoras
+        celdasGanadoras: partida.celdasGanadoras,
+        finalizada: partida.finalizada,
+        marcador: partida.marcador
       };
 
       // meter el objeto en la lista
@@ -292,6 +305,10 @@ this.registrarUsuario = function (obj, callback) {
       return { ok: false, msg: "Partida no existe" };
     }
 
+    if (partida.cerrada){
+      return { ok: false, msg: "La partida está cerrada" };
+    }
+
     // Solo el propietario puede iniciar
     if (partida.propietario !== email){
       return { ok: false, msg: "Solo el propietario puede iniciar" };
@@ -303,6 +320,7 @@ this.registrarUsuario = function (obj, callback) {
     }
 
     partida.iniciada = true;
+    partida.enJuego = true;
     return { ok: true, msg: "Partida iniciada" };
   }
 
@@ -329,6 +347,42 @@ this.registrarUsuario = function (obj, callback) {
     return { ok: true, msg: "Abandonaste la partida" };
   }
 
+  this.reiniciarPartida = function(email, codigo){
+    let partida = this.partidas[codigo];
+
+    if (!partida){
+      return { ok: false, msg: "Partida no existe" };
+    }
+
+    // Solo se puede reiniciar si la ronda terminó
+    if (!partida.finalizada){
+      return { ok: false, msg: "La partida aún no ha terminado" };
+    }
+
+    // Resetear el tablero
+    partida.tablero = [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0]
+    ];
+    partida.turno = 1;
+    partida.ganador = null;
+    partida.celdasGanadoras = [];
+    partida.finalizada = false;
+    partida.solicitudesNuevaRonda = {};
+
+    return { 
+      ok: true, 
+      msg: "Partida reiniciada",
+      tablero: partida.tablero,
+      turno: partida.turno,
+      ganador: partida.ganador,
+      celdasGanadoras: partida.celdasGanadoras,
+      finalizada: partida.finalizada,
+      marcador: partida.marcador
+    };
+  }
+
   this.hacerMovimiento = function(email, codigo, fila, columna){
     let partida = this.partidas[codigo];
 
@@ -338,6 +392,10 @@ this.registrarUsuario = function (obj, callback) {
 
     if (!partida.iniciada){
       return { ok: false, msg: "La partida no ha comenzado" };
+    }
+
+    if (partida.finalizada){
+      return { ok: false, msg: "La ronda ya ha terminado" };
     }
 
     // Determinar qué número de jugador es
@@ -369,6 +427,10 @@ this.registrarUsuario = function (obj, callback) {
     if (resultadoGanador){
       partida.ganador = resultadoGanador.ganador === 3 ? 'empate' : resultadoGanador.ganador;
       partida.celdasGanadoras = resultadoGanador.celdas;
+      partida.finalizada = true;
+      if (partida.ganador === 1 || partida.ganador === 2){
+        partida.marcador[partida.ganador] = (partida.marcador[partida.ganador] || 0) + 1;
+      }
     }
 
     // Cambiar turno
@@ -379,7 +441,9 @@ this.registrarUsuario = function (obj, callback) {
       tablero: partida.tablero,
       turno: partida.turno,
       ganador: partida.ganador,
-      celdasGanadoras: partida.celdasGanadoras
+      celdasGanadoras: partida.celdasGanadoras,
+      finalizada: partida.finalizada,
+      marcador: partida.marcador
     };
   }
 
@@ -448,6 +512,10 @@ function Partida(codigo, propietario){
   this.jugadores = [];
   this.maxJug = 2;
   this.iniciada = false;
+  this.enJuego = false;
+  this.cerrada = false;
+  this.jugadoresActivos = { 1: false, 2: false };
+  this.solicitudesNuevaRonda = {};
   
   // Tres en raya
   this.tablero = [
@@ -458,6 +526,8 @@ function Partida(codigo, propietario){
   this.turno = 1; // 1 o 2
   this.ganador = null; // null, 1, 2 o 'empate'
   this.celdasGanadoras = []; // [[fila, col], [fila, col], [fila, col]] - celdas de la línea ganadora
+  this.finalizada = false;
+  this.marcador = { 1: 0, 2: 0 };
 }
 
 module.exports.Partida = Partida;

@@ -5,11 +5,7 @@ const gv = require('./gestorVariables.js');
 // URL A USAR
 // ---------------------------------------
 
-// Modo LOCAL
-const url = "http://localhost:3000/";
-
-// Modo PRODUCCIÓN (Cloud Run)
-// const url = "https://arquitecturabase-582016504675.europe-north2.run.app/";
+const url = process.env.BASE_URL || 'http://localhost:3000/';
 
 let transporter;
 

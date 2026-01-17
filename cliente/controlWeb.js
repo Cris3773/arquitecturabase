@@ -2,8 +2,12 @@ function ControlWeb() {
     var self = this;
     this.intervaloPartidas = null;
     this.codigoPartidaActual = null;  // Guardar partida actual en juego
+    this.codigoPartidaSalida = null;
+    this.jugador1NickActual = "Jugador 1";
+    this.jugador2NickActual = "Jugador 2";
     this.intervaloVerificarPartida = null; // Polling para verificar partida en curso
     this.intervaloActualizarTablero = null; // Polling para actualizar tablero durante el juego
+    this.esperandoNuevaRonda = false;
 
     // --------------------------------------------------
     // Mostrar un mensaje de información en la zona #au
@@ -320,6 +324,7 @@ this.unirseLaPartida = function (codigo) {
     console.log("No hay usuario logueado");
     return;
   }
+  this.codigoPartidaSalida = null;
   
   // Reactivar polling si estaba pausado
   if (!self.intervaloVerificarPartida) {
@@ -351,6 +356,7 @@ this.crearPartida = function () {
     self.mostrarMensaje("Debes iniciar sesión para crear una partida");
     return;
   }
+  this.codigoPartidaSalida = null;
   
   // Reactivar polling si estaba pausado
   if (!self.intervaloVerificarPartida) {
@@ -440,6 +446,9 @@ this.abandonarPartida = function (codigo) {
 // --------------------------------------------------
   this.salir=function(){ 
     //localStorage.removeItem("nick"); 
+    if (this.codigoPartidaActual && typeof ws !== 'undefined') {
+      ws.salirPartida(this.codigoPartidaActual);
+    }
     if (this.intervaloPartidas) {
       clearInterval(this.intervaloPartidas);
       this.intervaloPartidas = null;
@@ -485,9 +494,16 @@ this.mostrarTablero = function (codigo) {
         return;
       }
 
+      if (typeof ws !== 'undefined') {
+        ws.entrarPartida(codigo);
+      }
+      self.esperandoNuevaRonda = false;
+
       // Obtener nicks de los jugadores
       var jugador1Nick = partida.jugadores[0] || "Jugador 1";
       var jugador2Nick = partida.jugadores[1] || "Jugador 2";
+      self.jugador1NickActual = jugador1Nick;
+      self.jugador2NickActual = jugador2Nick;
 
       // Verificar si el tablero ya está visible
       var tablaExistente = $("#tablero-" + codigo);
@@ -518,6 +534,9 @@ this.mostrarTablero = function (codigo) {
           estadoHtml = '<p class="mt-3"><strong>Turno:</strong> ' + turnoNick + ' (' + (partida.turno === 1 ? 'X' : 'O') + ')</p>';
         }
         estadoDiv.html(estadoHtml);
+        self.actualizarMarcador(partida.marcador, jugador1Nick, jugador2Nick);
+
+        self.actualizarAccionesNuevaRonda(codigo, partida.finalizada || partida.ganador);
         
         // Iniciar polling automático si no está activo
         if (!self.intervaloActualizarTablero) {
@@ -540,6 +559,7 @@ this.mostrarTablero = function (codigo) {
       html += '<p><strong>Jugadores:</strong></p>';
       html += '<p><strong style="color: #007bff;">X</strong> - ' + jugador1Nick + '</p>';
       html += '<p><strong style="color: #dc3545;">O</strong> - ' + jugador2Nick + '</p>';
+      html += '<p id="marcador-rondas" class="mt-2"></p>';
       html += '</div>';
       
       // Mostrar tablero
@@ -569,10 +589,23 @@ this.mostrarTablero = function (codigo) {
         html += '<p class="mt-3"><strong>Turno:</strong> ' + turnoNick + ' (' + (partida.turno === 1 ? 'X' : 'O') + ')</p>';
       }
       html += '</div>';
+
+      // Acciones de nueva ronda
+      html += '<div id="acciones-ronda" class="mt-3" style="display:none;">';
+      html += '<button class="btn btn-success" id="btnNuevaRonda">Jugar otra ronda</button>';
+      html += '<span class="ms-2" id="estado-nueva-ronda"></span>';
+      html += '</div>';
       
       html += '</div></div>';
       
       $("#au").html(html);
+
+      $("#btnNuevaRonda").off("click").on("click", function () {
+        self.pedirNuevaRonda(codigo);
+      });
+
+      self.actualizarMarcador(partida.marcador, jugador1Nick, jugador2Nick);
+      self.actualizarAccionesNuevaRonda(codigo, partida.finalizada || partida.ganador);
       
       // Iniciar polling automático del tablero
       self.iniciarActualizacionAutomaticaTablero(codigo);
@@ -600,6 +633,12 @@ this.verificarPartidaEnCurso = function () {
       });
       
       if (partidaActiva) {
+        if (partidaActiva.cerrada) {
+          return;
+        }
+        if (self.codigoPartidaSalida && partidaActiva.codigo === self.codigoPartidaSalida) {
+          return;
+        }
         // Encontramos una partida en curso, mostrarla
         self.codigoPartidaActual = partidaActiva.codigo;
         self.mostrarTablero(partidaActiva.codigo);
@@ -615,7 +654,13 @@ this.verificarPartidaEnCurso = function () {
 // Volver al listado de partidas
 // --------------------------------------------------
 this.volverAlListado = function () {
+  var codigo = this.codigoPartidaActual;
+  if (codigo && typeof ws !== 'undefined') {
+    ws.salirPartida(codigo);
+  }
   this.codigoPartidaActual = null;
+  this.codigoPartidaSalida = codigo || this.codigoPartidaSalida;
+  this.esperandoNuevaRonda = false;
   
   // Detener polling automático del tablero
   this.detenerActualizacionAutomaticaTablero();
@@ -654,6 +699,8 @@ this.actualizarTableroEnTiempoReal = function (data) {
     }
   }
   
+  var selectorTablero = this.codigoPartidaActual ? ("#tablero-" + this.codigoPartidaActual + " .casilla-tablero") : ".casilla-tablero";
+
   // Solo resaltar celdas ganadoras si hay un ganador
   if (data.ganador && data.celdasGanadoras && data.celdasGanadoras.length > 0) {
     // Si no hay resaltado previo, agregarlo
@@ -663,25 +710,150 @@ this.actualizarTableroEnTiempoReal = function (data) {
       var cellId = "celda-" + fila + "-" + col;
       $("#" + cellId).addClass("celda-ganadora");
     }
+  } else {
+    $(selectorTablero).removeClass("celda-ganadora");
   }
   
   // Actualizar estado del juego
   var estadoDiv = $("#estado-juego");
   if (estadoDiv.length > 0) {
     var estadoHtml = '';
+    var jugador1Nick = data.jugador1Nick || "Jugador 1";
+    var jugador2Nick = data.jugador2Nick || "Jugador 2";
+    this.jugador1NickActual = jugador1Nick;
+    this.jugador2NickActual = jugador2Nick;
     if (data.ganador) {
       if (data.ganador === 'empate') {
         estadoHtml = '<p class="text-warning mt-3">¡Empate!</p>';
       } else {
-        var ganadorNick = data.ganador === 1 ? data.jugador1Nick : data.jugador2Nick;
+        var ganadorNick = data.ganador === 1 ? jugador1Nick : jugador2Nick;
         estadoHtml = '<p class="text-success mt-3">¡Ganador: ' + ganadorNick + ' (Jugador ' + data.ganador + ')!</p>';
       }
     } else {
-      var turnoNick = data.turno === 1 ? data.jugador1Nick : data.jugador2Nick;
+      var turnoNick = data.turno === 1 ? jugador1Nick : jugador2Nick;
       estadoHtml = '<p class="mt-3"><strong>Turno:</strong> ' + turnoNick + ' (' + (data.turno === 1 ? 'X' : 'O') + ')</p>';
     }
     estadoDiv.html(estadoHtml);
   }
+
+  if (data.marcador) {
+    this.actualizarMarcador(data.marcador, this.jugador1NickActual, this.jugador2NickActual);
+  }
+
+  if (this.codigoPartidaActual) {
+    this.actualizarAccionesNuevaRonda(this.codigoPartidaActual, data.finalizada || data.ganador);
+  }
+};
+
+this.actualizarMarcador = function (marcador, jugador1Nick, jugador2Nick) {
+  var marcadorDiv = $("#marcador-rondas");
+  if (!marcadorDiv.length) return;
+  var m1 = (marcador && marcador[1]) ? marcador[1] : 0;
+  var m2 = (marcador && marcador[2]) ? marcador[2] : 0;
+  marcadorDiv.text("Marcador: " + jugador1Nick + " " + m1 + " - " + m2 + " " + jugador2Nick);
+};
+
+this.bloquearTablero = function () {
+  // Bloquea clicks cuando la ronda termina o alguien sale
+  $(".casilla-tablero").prop("disabled", true).addClass("disabled");
+};
+
+this.desbloquearTablero = function () {
+  // Reactiva el tablero al iniciar nueva ronda
+  $(".casilla-tablero").prop("disabled", false).removeClass("disabled");
+};
+
+// --------------------------------------------------
+// Acciones de nueva ronda
+// --------------------------------------------------
+this.actualizarAccionesNuevaRonda = function (codigo, ganador) {
+  var contenedor = $("#acciones-ronda");
+  if (!contenedor.length) return;
+  if (ganador) {
+    contenedor.show();
+    var boton = $("#btnNuevaRonda");
+    var estado = $("#estado-nueva-ronda");
+    if (this.esperandoNuevaRonda) {
+      boton.prop("disabled", true);
+      estado.text("Esperando al otro jugador...");
+    } else {
+      boton.prop("disabled", false);
+      if (!estado.text()) {
+        estado.text("");
+      }
+    }
+  } else {
+    contenedor.hide();
+    this.esperandoNuevaRonda = false;
+    $("#estado-nueva-ronda").text("");
+    $("#btnNuevaRonda").prop("disabled", false);
+  }
+};
+
+this.pedirNuevaRonda = function (codigo) {
+  if (!codigo) return;
+  this.esperandoNuevaRonda = true;
+  this.actualizarAccionesNuevaRonda(codigo, true);
+  if (typeof ws !== 'undefined') {
+    ws.pedirNuevaRonda(codigo);
+  }
+};
+
+this.mostrarFinPartida = function (data) {
+  if (!data || this.codigoPartidaActual !== data.codigo) return;
+  this.bloquearTablero();
+  if (data.marcador) {
+    this.actualizarMarcador(data.marcador, this.jugador1NickActual, this.jugador2NickActual);
+  }
+  this.actualizarAccionesNuevaRonda(data.codigo, data.ganador || true);
+};
+
+this.actualizarEstadoNuevaRonda = function (data) {
+  if (!data || this.codigoPartidaActual !== data.codigo) return;
+  var estado = $("#estado-nueva-ronda");
+  if (!estado.length) return;
+  var nick = $.cookie("nick");
+  if (data.nick && data.nick !== nick) {
+    estado.text("El otro jugador quiere otra ronda.");
+  } else if (data.nick && data.nick === nick) {
+    estado.text("Esperando al otro jugador...");
+  }
+};
+
+this.iniciarNuevaRonda = function (data) {
+  if (!data || this.codigoPartidaActual !== data.codigo) return;
+  var selfRef = this;
+  this.esperandoNuevaRonda = false;
+  $("#estado-nueva-ronda").text("");
+  this.desbloquearTablero();
+
+  if (typeof rest !== 'undefined') {
+    rest.obtenerTodasLasPartidas()
+      .then(function(partidas) {
+        var partida = partidas.find(p => p.codigo === data.codigo);
+        if (partida) {
+          data.jugador1Nick = partida.jugadores[0] || "Jugador 1";
+          data.jugador2Nick = partida.jugadores[1] || "Jugador 2";
+          data.marcador = partida.marcador;
+        }
+        selfRef.actualizarTableroEnTiempoReal(data);
+      })
+      .catch(function() {
+        selfRef.actualizarTableroEnTiempoReal(data);
+      });
+  } else {
+    selfRef.actualizarTableroEnTiempoReal(data);
+  }
+};
+
+this.notificarJugadorSalio = function (data) {
+  if (!data) return;
+  if (data.codigo && this.codigoPartidaActual !== data.codigo) return;
+  this.esperandoNuevaRonda = false;
+  $("#estado-nueva-ronda").text("");
+  $("#btnNuevaRonda").prop("disabled", false);
+  this.bloquearTablero();
+  this.mostrarMensaje(data.mensaje || data.msg || "El otro jugador ha abandonado la partida.");
 };
 
 // --------------------------------------------------
@@ -705,6 +877,8 @@ this.iniciarActualizacionAutomaticaTablero = function (codigo) {
               turno: partida.turno,
               ganador: partida.ganador,
               celdasGanadoras: partida.celdasGanadoras || [],
+              finalizada: partida.finalizada,
+              marcador: partida.marcador,
               jugador1Nick: partida.jugadores[0] || "Jugador 1",
               jugador2Nick: partida.jugadores[1] || "Jugador 2"
             };
@@ -749,6 +923,8 @@ this.hacerMovimiento = function (codigo, fila, columna) {
                 turno: resultado.turno,
                 ganador: resultado.ganador,
                 celdasGanadoras: resultado.celdasGanadoras || [],
+                finalizada: resultado.finalizada,
+                marcador: resultado.marcador,
                 jugador1Nick: partida.jugadores[0] || "Jugador 1",
                 jugador2Nick: partida.jugadores[1] || "Jugador 2"
               };
@@ -762,7 +938,9 @@ this.hacerMovimiento = function (codigo, fila, columna) {
               tablero: resultado.tablero,
               turno: resultado.turno,
               ganador: resultado.ganador,
-              celdasGanadoras: resultado.celdasGanadoras || []
+              celdasGanadoras: resultado.celdasGanadoras || [],
+              finalizada: resultado.finalizada,
+              marcador: resultado.marcador
             };
             self.actualizarTableroEnTiempoReal(data);
           });

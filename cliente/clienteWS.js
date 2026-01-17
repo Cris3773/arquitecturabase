@@ -80,7 +80,49 @@ function ClienteWS(){
         }
       }
     });
+
+    this.socket.on("fin_partida", function(data){
+      if (typeof controlWeb !== 'undefined') {
+        controlWeb.mostrarFinPartida(data);
+      }
+    });
+
+    this.socket.on("aceptar_nueva_ronda", function(data){
+      if (typeof controlWeb !== 'undefined') {
+        controlWeb.actualizarEstadoNuevaRonda(data);
+      }
+    });
+
+    this.socket.on("iniciar_nueva_ronda", function(data){
+      if (typeof controlWeb !== 'undefined') {
+        controlWeb.iniciarNuevaRonda(data);
+      }
+    });
+
+    this.socket.on("jugador_salio", function(data){
+      if (typeof controlWeb !== 'undefined') {
+        controlWeb.notificarJugadorSalio(data);
+      }
+    });
   }
+
+  this.entrarPartida = function(codigo){
+    var nick = $.cookie("nick");
+    if (!this.socket || !nick || !codigo) return;
+    this.socket.emit("entrar_partida", { codigo: codigo, nick: nick });
+  };
+
+  this.pedirNuevaRonda = function(codigo){
+    var nick = $.cookie("nick");
+    if (!this.socket || !nick || !codigo) return;
+    this.socket.emit("pedir_nueva_ronda", { codigo: codigo, nick: nick });
+  };
+
+  this.salirPartida = function(codigo){
+    var nick = $.cookie("nick");
+    if (!this.socket || !nick || !codigo) return;
+    this.socket.emit("salir_partida", { codigo: codigo, nick: nick });
+  };
 
   this.ini();
 }
