@@ -32,16 +32,36 @@ function ClienteWS(){
     });
 
     this.socket.on("partidaIniciada", function(data){
-      console.log("Partida iniciada:", data.codigo);
+      console.log("Partida iniciada (WebSocket):", data.codigo);
       if (typeof controlWeb !== 'undefined') {
-        controlWeb.actualizarListaPartidas();
+        var nick = $.cookie("nick");
+        // Obtener todas las partidas para verificar si el usuario está en esta
+        if (typeof rest !== 'undefined') {
+          rest.obtenerTodasLasPartidas()
+            .then(function(partidas) {
+              var partida = partidas.find(p => p.codigo === data.codigo);
+              if (partida && partida.jugadores.includes(nick)) {
+                // El usuario está en esta partida, mostrar tablero
+                controlWeb.codigoPartidaActual = data.codigo;
+                controlWeb.mostrarTablero(data.codigo);
+              }
+              controlWeb.actualizarListaPartidas();
+            })
+            .catch(function(err) {
+              console.error("Error obteniendo partidas:", err);
+              controlWeb.actualizarListaPartidas();
+            });
+        }
       }
     });
 
     this.socket.on("movimientoRealizado", function(data){
       console.log("Movimiento realizado en partida:", data.codigo);
       if (typeof controlWeb !== 'undefined') {
-        controlWeb.mostrarTablero(data.codigo);
+        // Si estamos viendo esa partida, actualizar el tablero
+        if (controlWeb.codigoPartidaActual === data.codigo) {
+          controlWeb.mostrarTablero(data.codigo);
+        }
       }
     });
   }

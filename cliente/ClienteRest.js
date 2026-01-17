@@ -169,6 +169,19 @@ this.obtenerPartidas = function () {
     });
 };
 
+// --- Obtener todas las partidas (iniciadas e no iniciadas) ---
+this.obtenerTodasLasPartidas = function () {
+  return $.getJSON("/obtenerTodasLasPartidas")
+    .then(function (data) {
+      console.log("obtenerTodasLasPartidas:", data);
+      return data;
+    })
+    .catch(function (err) {
+      console.error("obtenerTodasLasPartidas error:", err);
+      throw err;
+    });
+};
+
 // --- Unirse a partida ---
 this.unirseLaPartida = function (nick, codigo) {
   const url = "/unirseLaPartida/" + encodeURIComponent(nick) + "/" + encodeURIComponent(codigo);

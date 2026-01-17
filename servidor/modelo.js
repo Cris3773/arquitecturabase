@@ -255,6 +255,35 @@ this.registrarUsuario = function (obj, callback) {
   return lista;
 }
 
+  this.obtenerTodasLasPartidas = function(){
+    let lista = [];
+
+    for (let codigo in this.partidas){
+      let partida = this.partidas[codigo];
+
+      // obtener lista de nicks de jugadores
+      let jugadores = partida.jugadores.map(j => j.nick);
+
+      // crear objeto JSON con los datos
+      let obj = {
+        codigo: codigo,
+        propietario: partida.propietario,
+        numJugadores: partida.jugadores.length,
+        maxJug: partida.maxJug,
+        jugadores: jugadores,
+        iniciada: partida.iniciada,
+        tablero: partida.tablero,
+        turno: partida.turno,
+        ganador: partida.ganador
+      };
+
+      // meter el objeto en la lista
+      lista.push(obj);
+    }
+
+    return lista;
+  }
+
   this.iniciarPartida = function(email, codigo){
     let partida = this.partidas[codigo];
 

@@ -221,6 +221,11 @@ app.get("/obtenerPartidas", haIniciado, (req, res) => {
   res.json(partidas);
 });
 
+app.get("/obtenerTodasLasPartidas", haIniciado, (req, res) => {
+  const partidas = sistema.obtenerTodasLasPartidas();
+  res.json(partidas);
+});
+
 app.get("/crearPartida/:nick", haIniciado, (req, res) => {
   const resultado = sistema.crearPartida(req.params.nick);
   // Notificar a todos los clientes que se creó una nueva partida

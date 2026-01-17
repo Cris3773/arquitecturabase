@@ -1,6 +1,8 @@
 function ControlWeb() {
     var self = this;
     this.intervaloPartidas = null;
+    this.codigoPartidaActual = null;  // Guardar partida actual en juego
+    this.intervaloVerificarPartida = null; // Polling para verificar partida en curso
 
     // --------------------------------------------------
     // Mostrar un mensaje de información en la zona #au
@@ -57,16 +59,30 @@ function ControlWeb() {
                 clearInterval(self.intervaloPartidas);
                 self.intervaloPartidas = null;
             }
-        }
+            
+            // Detener verificación de partida
+            if (self.intervaloVerificarPartida) {
+                clearInterval(self.intervaloVerificarPartida);
+                self.intervaloVerificarPartida = null;
+            }
+        } 
         
-        // Hay sesión: iniciar polling automático
         if (nick) {
+            // Hay sesión: iniciar polling automático y verificación de partida
             if (self.intervaloPartidas) {
                 clearInterval(self.intervaloPartidas);
             }
             self.intervaloPartidas = setInterval(function() {
                 self.actualizarListaPartidas();
             }, 2000); // Actualizar cada 2 segundos
+            
+            // Iniciar verificación de partida en curso
+            if (self.intervaloVerificarPartida) {
+                clearInterval(self.intervaloVerificarPartida);
+            }
+            self.intervaloVerificarPartida = setInterval(function() {
+                self.verificarPartidaEnCurso();
+            }, 1000); // Verificar cada 1 segundo
         }
 
         // A la derecha siempre mostramos la lista de usuarios
@@ -206,10 +222,15 @@ function ControlWeb() {
     };
 
     // --------------------------------------------------
-// Lista de partidas disponibles
+// Actualizar lista de partidas
 // --------------------------------------------------
 this.actualizarListaPartidas = function () {
   var nick = $.cookie("nick");
+  
+  // Si hay una partida activa, no actualizar el listado
+  if (this.codigoPartidaActual) {
+    return;
+  }
   
   // Solo obtener si hay sesión
   if (!nick) {
@@ -299,6 +320,13 @@ this.unirseLaPartida = function (codigo) {
     return;
   }
   
+  // Reactivar polling si estaba pausado
+  if (!self.intervaloVerificarPartida) {
+    self.intervaloVerificarPartida = setInterval(function() {
+      self.verificarPartidaEnCurso();
+    }, 1000);
+  }
+  
   rest.unirseLaPartida(nick, codigo)
     .then(function (resultado) {
       if (resultado.ok) {
@@ -321,6 +349,13 @@ this.crearPartida = function () {
   if (!nick) {
     self.mostrarMensaje("Debes iniciar sesión para crear una partida");
     return;
+  }
+  
+  // Reactivar polling si estaba pausado
+  if (!self.intervaloVerificarPartida) {
+    self.intervaloVerificarPartida = setInterval(function() {
+      self.verificarPartidaEnCurso();
+    }, 1000);
   }
   
   rest.crearPartida(nick)
@@ -351,6 +386,8 @@ this.iniciarPartida = function (codigo) {
     .then(function (resultado) {
       if (resultado.ok) {
         self.mostrarMensaje("Partida iniciada");
+        // Guardar la partida actual
+        self.codigoPartidaActual = codigo;
         // Esperar un poco y luego mostrar el tablero
         setTimeout(function() {
           self.mostrarTablero(codigo);
@@ -372,6 +409,11 @@ this.abandonarPartida = function (codigo) {
   if (!nick) {
     self.mostrarMensaje("Debes iniciar sesión");
     return;
+  }
+  
+  // Limpiar partida actual si estamos abandonando
+  if (this.codigoPartidaActual === codigo) {
+    this.codigoPartidaActual = null;
   }
   
   rest.abandonarPartida(nick, codigo)
@@ -397,6 +439,10 @@ this.abandonarPartida = function (codigo) {
       clearInterval(this.intervaloPartidas);
       this.intervaloPartidas = null;
     }
+    if (this.intervaloVerificarPartida) {
+      clearInterval(this.intervaloVerificarPartida);
+      this.intervaloVerificarPartida = null;
+    }
     $.removeCookie("nick"); 
     location.reload(); 
     rest.cerrarSesion(); 
@@ -408,8 +454,14 @@ this.abandonarPartida = function (codigo) {
 this.mostrarTablero = function (codigo) {
   var nick = $.cookie("nick");
   
-  // Obtener la partida
-  rest.obtenerPartidas()
+  // Ocultar el listado de partidas mientras se juega
+  var cardListado = $("#listaPartidas").closest(".card");
+  if (cardListado.length) {
+    cardListado.hide();
+  }
+  
+  // Obtener todas las partidas (incluyendo iniciadas)
+  rest.obtenerTodasLasPartidas()
     .then(function (partidas) {
       var partida = partidas.find(p => p.codigo === codigo);
       
@@ -418,25 +470,66 @@ this.mostrarTablero = function (codigo) {
         return;
       }
 
+      // Verificar si el usuario está en la partida
+      if (!partida.jugadores.includes(nick)) {
+        self.mostrarMensaje("No estás en esta partida");
+        return;
+      }
+
+      // Verificar si el tablero ya está visible
+      var tablaExistente = $("#tablero-" + codigo);
+      
+      if (tablaExistente.length > 0) {
+        // Actualizar tablero existente sin parpadeo
+        for (var i = 0; i < 3; i++) {
+          for (var j = 0; j < 3; j++) {
+            var valor = partida.tablero ? partida.tablero[i][j] : 0;
+            var simbolo = valor === 0 ? '' : (valor === 1 ? 'X' : 'O');
+            var cellId = "celda-" + i + "-" + j;
+            $("#" + cellId).text(simbolo);
+          }
+        }
+        
+        // Actualizar estado
+        var estadoDiv = $("#estado-juego");
+        var estadoHtml = '';
+        if (partida.ganador) {
+          if (partida.ganador === 'empate') {
+            estadoHtml = '<p class="text-warning mt-3">¡Empate!</p>';
+          } else {
+            estadoHtml = '<p class="text-success mt-3">¡Ganador: Jugador ' + partida.ganador + '!</p>';
+          }
+        } else {
+          estadoHtml = '<p class="mt-3">Turno: Jugador ' + partida.turno + '</p>';
+        }
+        estadoDiv.html(estadoHtml);
+        
+        return;
+      }
+
       // Crear HTML del tablero
       var html = '<div class="card mt-4">';
-      html += '<div class="card-header"><h5>Partida: ' + codigo + '</h5></div>';
+      html += '<div class="card-header d-flex justify-content-between align-items-center">';
+      html += '<h5>Partida: ' + codigo + '</h5>';
+      html += '<button class="btn btn-sm btn-secondary" onclick="cw.volverAlListado()"><i class="bi bi-arrow-left"></i> Volver</button>';
+      html += '</div>';
       html += '<div class="card-body">';
       
       // Mostrar tablero
-      html += '<div class="tablero-3raya">';
+      html += '<div class="tablero-3raya" id="tablero-' + codigo + '">';
       for (var i = 0; i < 3; i++) {
         html += '<div class="fila-tablero">';
         for (var j = 0; j < 3; j++) {
           var valor = partida.tablero ? partida.tablero[i][j] : 0;
           var simbolo = valor === 0 ? '' : (valor === 1 ? 'X' : 'O');
-          html += '<button class="casilla-tablero" onclick="cw.hacerMovimiento(\'' + codigo + '\', ' + i + ', ' + j + ')">' + simbolo + '</button>';
+          html += '<button class="casilla-tablero" id="celda-' + i + '-' + j + '" onclick="cw.hacerMovimiento(\'' + codigo + '\', ' + i + ', ' + j + ')">' + simbolo + '</button>';
         }
         html += '</div>';
       }
       html += '</div>';
       
       // Estado del juego
+      html += '<div id="estado-juego">';
       if (partida.ganador) {
         if (partida.ganador === 'empate') {
           html += '<p class="text-warning mt-3">¡Empate!</p>';
@@ -446,6 +539,7 @@ this.mostrarTablero = function (codigo) {
       } else {
         html += '<p class="mt-3">Turno: Jugador ' + partida.turno + '</p>';
       }
+      html += '</div>';
       
       html += '</div></div>';
       
@@ -453,7 +547,60 @@ this.mostrarTablero = function (codigo) {
     })
     .catch(function (error) {
       console.error("Error al obtener partida:", error);
+      self.mostrarMensaje("Error al cargar el tablero");
     });
+};
+
+// --------------------------------------------------
+// Verificar si hay una partida en curso para este usuario
+// --------------------------------------------------
+this.verificarPartidaEnCurso = function () {
+  var nick = $.cookie("nick");
+  if (!nick || this.codigoPartidaActual) {
+    return; // Ya hay una partida en curso o sin sesión
+  }
+  
+  rest.obtenerTodasLasPartidas()
+    .then(function (partidas) {
+      // Buscar una partida iniciada donde este usuario esté
+      var partidaActiva = partidas.find(function(p) {
+        return p.iniciada && p.jugadores.includes(nick);
+      });
+      
+      if (partidaActiva) {
+        // Encontramos una partida en curso, mostrarla
+        self.codigoPartidaActual = partidaActiva.codigo;
+        self.mostrarTablero(partidaActiva.codigo);
+      }
+    })
+    .catch(function (error) {
+      // Error silencioso en polling
+      console.log("Error en verificarPartidaEnCurso:", error);
+    });
+};
+
+// --------------------------------------------------
+// Volver al listado de partidas
+// --------------------------------------------------
+this.volverAlListado = function () {
+  this.codigoPartidaActual = null;
+  
+  // Pausar la verificación de partida en curso para evitar que vuelva a mostrar el tablero
+  if (this.intervaloVerificarPartida) {
+    clearInterval(this.intervaloVerificarPartida);
+    this.intervaloVerificarPartida = null;
+  }
+  
+  // Limpiar el área del tablero
+  $("#au").empty();
+  
+  // Mostrar el listado de partidas nuevamente
+  var cardListado = $("#listaPartidas").closest(".card");
+  if (cardListado.length) {
+    cardListado.show();
+  }
+  
+  this.actualizarListaPartidas();
 };
 
 // --------------------------------------------------
