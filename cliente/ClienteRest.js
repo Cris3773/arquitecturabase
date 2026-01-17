@@ -225,6 +225,20 @@ this.abandonarPartida = function (nick, codigo) {
     });
 };
 
+// --- Hacer movimiento ---
+this.hacerMovimiento = function (nick, codigo, fila, columna) {
+  const url = "/hacerMovimiento/" + encodeURIComponent(nick) + "/" + encodeURIComponent(codigo) + "/" + fila + "/" + columna;
+  return $.getJSON(url)
+    .then(function (data) {
+      console.log("hacerMovimiento:", data);
+      return data;
+    })
+    .catch(function (err) {
+      console.error("hacerMovimiento error:", err);
+      throw err;
+    });
+};
+
 this.cerrarSesion=function(){ 
 $.getJSON("/cerrarSesion",function(){    
 console.log("Sesión cerrada");   

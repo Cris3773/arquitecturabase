@@ -30,6 +30,31 @@
     @media (min-width: 992px){
       body { padding-top: 64px; }
     }
+    
+    .tablero-3raya {
+      display: inline-block;
+      border: 2px solid #333;
+      margin: 20px 0;
+    }
+    
+    .fila-tablero {
+      display: flex;
+    }
+    
+    .casilla-tablero {
+      width: 80px;
+      height: 80px;
+      font-size: 32px;
+      font-weight: bold;
+      border: 1px solid #999;
+      background-color: #f9f9f9;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    
+    .casilla-tablero:hover {
+      background-color: #e0e0e0;
+    }
   </style>
 </head>
 <body>

@@ -223,21 +223,47 @@ app.get("/obtenerPartidas", haIniciado, (req, res) => {
 
 app.get("/crearPartida/:nick", haIniciado, (req, res) => {
   const resultado = sistema.crearPartida(req.params.nick);
+  // Notificar a todos los clientes que se creó una nueva partida
+  wsServer.notificarPartidaCreada(resultado);
   res.json(resultado);
 });
 
 app.get("/unirseLaPartida/:nick/:codigo", haIniciado, (req, res) => {
   const resultado = sistema.unirAPartida(req.params.nick, req.params.codigo);
+  if (resultado.exito) {
+    const partida = sistema.partidas[req.params.codigo];
+    wsServer.notificarUsuarioUnido(req.params.codigo, partida.jugadores);
+  }
   res.json(resultado);
 });
 
 app.get("/iniciarPartida/:nick/:codigo", haIniciado, (req, res) => {
   const resultado = sistema.iniciarPartida(req.params.nick, req.params.codigo);
+  if (resultado.exito) {
+    wsServer.notificarPartidaIniciada(req.params.codigo);
+  }
   res.json(resultado);
 });
 
 app.get("/abandonarPartida/:nick/:codigo", haIniciado, (req, res) => {
   const resultado = sistema.abandonarPartida(req.params.nick, req.params.codigo);
+  if (resultado.exito) {
+    const partida = sistema.partidas[req.params.codigo];
+    if (partida) {
+      wsServer.notificarUsuarioAbandono(req.params.codigo, partida.jugadores);
+    }
+  }
+  res.json(resultado);
+});
+
+app.get("/hacerMovimiento/:nick/:codigo/:fila/:columna", haIniciado, (req, res) => {
+  const fila = parseInt(req.params.fila);
+  const columna = parseInt(req.params.columna);
+  const resultado = sistema.hacerMovimiento(req.params.nick, req.params.codigo, fila, columna);
+  if (resultado.exito) {
+    const partida = sistema.partidas[req.params.codigo];
+    wsServer.notificarMovimiento(req.params.codigo, partida.tablero, partida.turno, partida.ganador);
+  }
   res.json(resultado);
 });
 

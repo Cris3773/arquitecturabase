@@ -299,6 +299,98 @@ this.registrarUsuario = function (obj, callback) {
     return { ok: true, msg: "Abandonaste la partida" };
   }
 
+  this.hacerMovimiento = function(email, codigo, fila, columna){
+    let partida = this.partidas[codigo];
+
+    if (!partida){
+      return { ok: false, msg: "Partida no existe" };
+    }
+
+    if (!partida.iniciada){
+      return { ok: false, msg: "La partida no ha comenzado" };
+    }
+
+    // Determinar qué número de jugador es
+    let numJugador = 0;
+    if (partida.propietario === email) numJugador = 1;
+    else if (partida.jugadores.length > 1 && partida.jugadores[1].nick === email) numJugador = 2;
+
+    if (numJugador === 0){
+      return { ok: false, msg: "No estás en esta partida" };
+    }
+
+    if (partida.turno !== numJugador){
+      return { ok: false, msg: "No es tu turno" };
+    }
+
+    if (fila < 0 || fila > 2 || columna < 0 || columna > 2){
+      return { ok: false, msg: "Posición inválida" };
+    }
+
+    if (partida.tablero[fila][columna] !== 0){
+      return { ok: false, msg: "Esa casilla ya está ocupada" };
+    }
+
+    // Hacer el movimiento
+    partida.tablero[fila][columna] = numJugador;
+
+    // Verificar ganador
+    let ganador = this.verificarGanador(partida.tablero);
+    if (ganador){
+      partida.ganador = ganador === 3 ? 'empate' : ganador;
+    }
+
+    // Cambiar turno
+    partida.turno = partida.turno === 1 ? 2 : 1;
+
+    return { 
+      ok: true, 
+      tablero: partida.tablero,
+      turno: partida.turno,
+      ganador: partida.ganador
+    };
+  }
+
+  this.verificarGanador = function(tablero){
+    // Verificar filas
+    for (let i = 0; i < 3; i++){
+      if (tablero[i][0] !== 0 && tablero[i][0] === tablero[i][1] && tablero[i][1] === tablero[i][2]){
+        return tablero[i][0];
+      }
+    }
+
+    // Verificar columnas
+    for (let j = 0; j < 3; j++){
+      if (tablero[0][j] !== 0 && tablero[0][j] === tablero[1][j] && tablero[1][j] === tablero[2][j]){
+        return tablero[0][j];
+      }
+    }
+
+    // Verificar diagonales
+    if (tablero[0][0] !== 0 && tablero[0][0] === tablero[1][1] && tablero[1][1] === tablero[2][2]){
+      return tablero[0][0];
+    }
+
+    if (tablero[0][2] !== 0 && tablero[0][2] === tablero[1][1] && tablero[1][1] === tablero[2][0]){
+      return tablero[0][2];
+    }
+
+    // Verificar empate
+    let estaLleno = true;
+    for (let i = 0; i < 3; i++){
+      for (let j = 0; j < 3; j++){
+        if (tablero[i][j] === 0){
+          estaLleno = false;
+          break;
+        }
+      }
+    }
+
+    if (estaLleno) return 3; // 3 = empate
+
+    return null; // Juego continúa
+  }
+
 
 }
 
@@ -312,6 +404,15 @@ function Partida(codigo, propietario){
   this.jugadores = [];
   this.maxJug = 2;
   this.iniciada = false;
+  
+  // Tres en raya
+  this.tablero = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+  ]; // 0 = vacío, 1 = jugador 1, 2 = jugador 2
+  this.turno = 1; // 1 o 2
+  this.ganador = null; // null, 1, 2 o 'empate'
 }
 
 module.exports.Partida = Partida;

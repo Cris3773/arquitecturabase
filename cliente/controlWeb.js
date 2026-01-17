@@ -1,5 +1,6 @@
 function ControlWeb() {
     var self = this;
+    this.intervaloPartidas = null;
 
     // --------------------------------------------------
     // Mostrar un mensaje de información en la zona #au
@@ -50,6 +51,22 @@ function ControlWeb() {
             if (card.length) {
                 card.hide();
             }
+            
+            // Detener polling si estaba activo
+            if (self.intervaloPartidas) {
+                clearInterval(self.intervaloPartidas);
+                self.intervaloPartidas = null;
+            }
+        }
+        
+        // Hay sesión: iniciar polling automático
+        if (nick) {
+            if (self.intervaloPartidas) {
+                clearInterval(self.intervaloPartidas);
+            }
+            self.intervaloPartidas = setInterval(function() {
+                self.actualizarListaPartidas();
+            }, 2000); // Actualizar cada 2 segundos
         }
 
         // A la derecha siempre mostramos la lista de usuarios
@@ -194,18 +211,25 @@ function ControlWeb() {
 this.actualizarListaPartidas = function () {
   var nick = $.cookie("nick");
   
-  // Limpiar la lista
-  var lista = $("#listaPartidas");
-  lista.empty();
-  
   // Solo obtener si hay sesión
   if (!nick) {
+    var lista = $("#listaPartidas");
+    lista.empty();
     lista.append('<li class="list-group-item">Inicia sesión para ver partidas</li>');
     return;
   }
   
   rest.obtenerPartidas()
     .then(function (partidas) {
+      var lista = $("#listaPartidas");
+      
+      // Guardar los elementos actuales para evitar parpadeo
+      var anteriorPartidas = lista.find('li[data-codigo]');
+      var codigosAnteriores = {};
+      anteriorPartidas.each(function() {
+        codigosAnteriores[$(this).data('codigo')] = true;
+      });
+      
       lista.empty();
 
       if (partidas.length === 0) {
@@ -242,7 +266,7 @@ this.actualizarListaPartidas = function () {
           }
           
           lista.append(
-            '<li class="list-group-item d-flex justify-content-between align-items-center">' +
+            '<li class="list-group-item d-flex justify-content-between align-items-center" data-codigo="' + partida.codigo + '">' +
               '<span>Partida: ' + partida.codigo + '<br><small>Jugadores: ' + partida.numJugadores + '/' + partida.maxJug + '</small></span>' +
               botones +
             '</li>'
@@ -259,6 +283,7 @@ this.actualizarListaPartidas = function () {
     })
     .catch(function (error) {
       console.error("Error al obtener partidas:", error);
+      var lista = $("#listaPartidas");
       lista.empty();
       lista.append('<li class="list-group-item text-danger">Error al cargar partidas</li>');
     });
@@ -326,7 +351,10 @@ this.iniciarPartida = function (codigo) {
     .then(function (resultado) {
       if (resultado.ok) {
         self.mostrarMensaje("Partida iniciada");
-        self.actualizarListaPartidas();
+        // Esperar un poco y luego mostrar el tablero
+        setTimeout(function() {
+          self.mostrarTablero(codigo);
+        }, 500);
       } else {
         self.mostrarMensaje("Error: " + resultado.msg);
       }
@@ -360,15 +388,93 @@ this.abandonarPartida = function (codigo) {
     });
 };
 
-    // --------------------------------------------------
-    // Salir: borra cookie de sesión y vuelve al estado inicial
-    // --------------------------------------------------
+// --------------------------------------------------
+// Salir: borra cookie de sesión y vuelve al estado inicial
+// --------------------------------------------------
   this.salir=function(){ 
     //localStorage.removeItem("nick"); 
+    if (this.intervaloPartidas) {
+      clearInterval(this.intervaloPartidas);
+      this.intervaloPartidas = null;
+    }
     $.removeCookie("nick"); 
     location.reload(); 
     rest.cerrarSesion(); 
  }
+
+// --------------------------------------------------
+// Mostrar tablero de tres en raya
+// --------------------------------------------------
+this.mostrarTablero = function (codigo) {
+  var nick = $.cookie("nick");
+  
+  // Obtener la partida
+  rest.obtenerPartidas()
+    .then(function (partidas) {
+      var partida = partidas.find(p => p.codigo === codigo);
+      
+      if (!partida) {
+        self.mostrarMensaje("Partida no encontrada");
+        return;
+      }
+
+      // Crear HTML del tablero
+      var html = '<div class="card mt-4">';
+      html += '<div class="card-header"><h5>Partida: ' + codigo + '</h5></div>';
+      html += '<div class="card-body">';
+      
+      // Mostrar tablero
+      html += '<div class="tablero-3raya">';
+      for (var i = 0; i < 3; i++) {
+        html += '<div class="fila-tablero">';
+        for (var j = 0; j < 3; j++) {
+          var valor = partida.tablero ? partida.tablero[i][j] : 0;
+          var simbolo = valor === 0 ? '' : (valor === 1 ? 'X' : 'O');
+          html += '<button class="casilla-tablero" onclick="cw.hacerMovimiento(\'' + codigo + '\', ' + i + ', ' + j + ')">' + simbolo + '</button>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+      
+      // Estado del juego
+      if (partida.ganador) {
+        if (partida.ganador === 'empate') {
+          html += '<p class="text-warning mt-3">¡Empate!</p>';
+        } else {
+          html += '<p class="text-success mt-3">¡Ganador: Jugador ' + partida.ganador + '!</p>';
+        }
+      } else {
+        html += '<p class="mt-3">Turno: Jugador ' + partida.turno + '</p>';
+      }
+      
+      html += '</div></div>';
+      
+      $("#au").html(html);
+    })
+    .catch(function (error) {
+      console.error("Error al obtener partida:", error);
+    });
+};
+
+// --------------------------------------------------
+// Hacer movimiento en tablero
+// --------------------------------------------------
+this.hacerMovimiento = function (codigo, fila, columna) {
+  var nick = $.cookie("nick");
+  if (!nick) return;
+  
+  rest.hacerMovimiento(nick, codigo, fila, columna)
+    .then(function (resultado) {
+      if (resultado.ok) {
+        self.mostrarTablero(codigo);
+      } else {
+        self.mostrarMensaje("Error: " + resultado.msg);
+      }
+    })
+    .catch(function (error) {
+      console.error("Error al hacer movimiento:", error);
+    });
+};
 
     // --------------------------------------------------
     // (OPCIONAL) Formulario antiguo de nick + Google
