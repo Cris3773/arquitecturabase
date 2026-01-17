@@ -28,8 +28,8 @@ function WSServer(io){
     io.emit("usuarioAbandono", { codigo, jugadores });
   };
 
-  this.notificarMovimiento = function(codigo, tablero, turno, ganador) {
-    io.emit("movimientoRealizado", { codigo, tablero, turno, ganador });
+  this.notificarMovimiento = function(codigo, tablero, turno, ganador, celdasGanadoras) {
+    io.emit("movimientoRealizado", { codigo, tablero, turno, ganador, celdasGanadoras });
   };
 }
 

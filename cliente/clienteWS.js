@@ -60,7 +60,23 @@ function ClienteWS(){
       if (typeof controlWeb !== 'undefined') {
         // Si estamos viendo esa partida, actualizar el tablero directamente
         if (controlWeb.codigoPartidaActual === data.codigo) {
-          controlWeb.actualizarTableroEnTiempoReal(data);
+          // Obtener los nicks de la partida para mostrar el estado correctamente
+          if (typeof rest !== 'undefined') {
+            rest.obtenerTodasLasPartidas()
+              .then(function(partidas) {
+                var partida = partidas.find(p => p.codigo === data.codigo);
+                if (partida) {
+                  data.jugador1Nick = partida.jugadores[0] || "Jugador 1";
+                  data.jugador2Nick = partida.jugadores[1] || "Jugador 2";
+                  controlWeb.actualizarTableroEnTiempoReal(data);
+                }
+              })
+              .catch(function(err) {
+                console.log("Error obteniendo nicks:", err);
+                // Actualizar de todas formas aunque no tengamos los nicks
+                controlWeb.actualizarTableroEnTiempoReal(data);
+              });
+          }
         }
       }
     });

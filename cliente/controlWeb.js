@@ -654,6 +654,17 @@ this.actualizarTableroEnTiempoReal = function (data) {
     }
   }
   
+  // Solo resaltar celdas ganadoras si hay un ganador
+  if (data.ganador && data.celdasGanadoras && data.celdasGanadoras.length > 0) {
+    // Si no hay resaltado previo, agregarlo
+    for (var i = 0; i < data.celdasGanadoras.length; i++) {
+      var fila = data.celdasGanadoras[i][0];
+      var col = data.celdasGanadoras[i][1];
+      var cellId = "celda-" + fila + "-" + col;
+      $("#" + cellId).addClass("celda-ganadora");
+    }
+  }
+  
   // Actualizar estado del juego
   var estadoDiv = $("#estado-juego");
   if (estadoDiv.length > 0) {
@@ -693,6 +704,7 @@ this.iniciarActualizacionAutomaticaTablero = function (codigo) {
               tablero: partida.tablero,
               turno: partida.turno,
               ganador: partida.ganador,
+              celdasGanadoras: partida.celdasGanadoras || [],
               jugador1Nick: partida.jugadores[0] || "Jugador 1",
               jugador2Nick: partida.jugadores[1] || "Jugador 2"
             };
@@ -736,6 +748,7 @@ this.hacerMovimiento = function (codigo, fila, columna) {
                 tablero: resultado.tablero,
                 turno: resultado.turno,
                 ganador: resultado.ganador,
+                celdasGanadoras: resultado.celdasGanadoras || [],
                 jugador1Nick: partida.jugadores[0] || "Jugador 1",
                 jugador2Nick: partida.jugadores[1] || "Jugador 2"
               };
@@ -748,7 +761,8 @@ this.hacerMovimiento = function (codigo, fila, columna) {
             var data = {
               tablero: resultado.tablero,
               turno: resultado.turno,
-              ganador: resultado.ganador
+              ganador: resultado.ganador,
+              celdasGanadoras: resultado.celdasGanadoras || []
             };
             self.actualizarTableroEnTiempoReal(data);
           });

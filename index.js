@@ -265,9 +265,9 @@ app.get("/hacerMovimiento/:nick/:codigo/:fila/:columna", haIniciado, (req, res) 
   const fila = parseInt(req.params.fila);
   const columna = parseInt(req.params.columna);
   const resultado = sistema.hacerMovimiento(req.params.nick, req.params.codigo, fila, columna);
-  if (resultado.exito) {
+  if (resultado.ok) {
     const partida = sistema.partidas[req.params.codigo];
-    wsServer.notificarMovimiento(req.params.codigo, partida.tablero, partida.turno, partida.ganador);
+    wsServer.notificarMovimiento(req.params.codigo, partida.tablero, partida.turno, partida.ganador, partida.celdasGanadoras);
   }
   res.json(resultado);
 });
