@@ -225,11 +225,11 @@ function ControlWeb() {
     // --------------------------------------------------
 // Actualizar lista de partidas
 // --------------------------------------------------
-this.actualizarListaPartidas = function () {
+this.actualizarListaPartidas = function (forzar) {
   var nick = $.cookie("nick");
   
-  // Si hay una partida activa, no actualizar el listado
-  if (this.codigoPartidaActual) {
+  // Si hay una partida activa y no se fuerza, no actualizar el listado
+  if (this.codigoPartidaActual && !forzar) {
     return;
   }
   
@@ -389,6 +389,10 @@ this.iniciarPartida = function (codigo) {
         self.mostrarMensaje("Partida iniciada");
         // Guardar la partida actual
         self.codigoPartidaActual = codigo;
+        
+        // Actualizar listado inmediatamente para remover la partida (forzar actualización)
+        self.actualizarListaPartidas(true);
+        
         // Esperar un poco y luego mostrar el tablero
         setTimeout(function() {
           self.mostrarTablero(codigo);
@@ -481,6 +485,10 @@ this.mostrarTablero = function (codigo) {
         return;
       }
 
+      // Obtener nicks de los jugadores
+      var jugador1Nick = partida.jugadores[0] || "Jugador 1";
+      var jugador2Nick = partida.jugadores[1] || "Jugador 2";
+
       // Verificar si el tablero ya está visible
       var tablaExistente = $("#tablero-" + codigo);
       
@@ -502,10 +510,12 @@ this.mostrarTablero = function (codigo) {
           if (partida.ganador === 'empate') {
             estadoHtml = '<p class="text-warning mt-3">¡Empate!</p>';
           } else {
-            estadoHtml = '<p class="text-success mt-3">¡Ganador: Jugador ' + partida.ganador + '!</p>';
+            var ganadorNick = partida.ganador === 1 ? jugador1Nick : jugador2Nick;
+            estadoHtml = '<p class="text-success mt-3">¡Ganador: ' + ganadorNick + ' (Jugador ' + partida.ganador + ')!</p>';
           }
         } else {
-          estadoHtml = '<p class="mt-3">Turno: Jugador ' + partida.turno + '</p>';
+          var turnoNick = partida.turno === 1 ? jugador1Nick : jugador2Nick;
+          estadoHtml = '<p class="mt-3"><strong>Turno:</strong> ' + turnoNick + ' (' + (partida.turno === 1 ? 'X' : 'O') + ')</p>';
         }
         estadoDiv.html(estadoHtml);
         
@@ -524,6 +534,13 @@ this.mostrarTablero = function (codigo) {
       html += '<button class="btn btn-sm btn-secondary" onclick="cw.volverAlListado()"><i class="bi bi-arrow-left"></i> Volver</button>';
       html += '</div>';
       html += '<div class="card-body">';
+      
+      // Mostrar info de los jugadores
+      html += '<div class="mb-3">';
+      html += '<p><strong>Jugadores:</strong></p>';
+      html += '<p><strong style="color: #007bff;">X</strong> - ' + jugador1Nick + '</p>';
+      html += '<p><strong style="color: #dc3545;">O</strong> - ' + jugador2Nick + '</p>';
+      html += '</div>';
       
       // Mostrar tablero
       html += '<div class="tablero-3raya" id="tablero-' + codigo + '">';
@@ -544,10 +561,12 @@ this.mostrarTablero = function (codigo) {
         if (partida.ganador === 'empate') {
           html += '<p class="text-warning mt-3">¡Empate!</p>';
         } else {
-          html += '<p class="text-success mt-3">¡Ganador: Jugador ' + partida.ganador + '!</p>';
+          var ganadorNick = partida.ganador === 1 ? jugador1Nick : jugador2Nick;
+          html += '<p class="text-success mt-3">¡Ganador: ' + ganadorNick + ' (Jugador ' + partida.ganador + ')!</p>';
         }
       } else {
-        html += '<p class="mt-3">Turno: Jugador ' + partida.turno + '</p>';
+        var turnoNick = partida.turno === 1 ? jugador1Nick : jugador2Nick;
+        html += '<p class="mt-3"><strong>Turno:</strong> ' + turnoNick + ' (' + (partida.turno === 1 ? 'X' : 'O') + ')</p>';
       }
       html += '</div>';
       
@@ -643,10 +662,12 @@ this.actualizarTableroEnTiempoReal = function (data) {
       if (data.ganador === 'empate') {
         estadoHtml = '<p class="text-warning mt-3">¡Empate!</p>';
       } else {
-        estadoHtml = '<p class="text-success mt-3">¡Ganador: Jugador ' + data.ganador + '!</p>';
+        var ganadorNick = data.ganador === 1 ? data.jugador1Nick : data.jugador2Nick;
+        estadoHtml = '<p class="text-success mt-3">¡Ganador: ' + ganadorNick + ' (Jugador ' + data.ganador + ')!</p>';
       }
     } else {
-      estadoHtml = '<p class="mt-3">Turno: Jugador ' + data.turno + '</p>';
+      var turnoNick = data.turno === 1 ? data.jugador1Nick : data.jugador2Nick;
+      estadoHtml = '<p class="mt-3"><strong>Turno:</strong> ' + turnoNick + ' (' + (data.turno === 1 ? 'X' : 'O') + ')</p>';
     }
     estadoDiv.html(estadoHtml);
   }
@@ -671,7 +692,9 @@ this.iniciarActualizacionAutomaticaTablero = function (codigo) {
             var data = {
               tablero: partida.tablero,
               turno: partida.turno,
-              ganador: partida.ganador
+              ganador: partida.ganador,
+              jugador1Nick: partida.jugadores[0] || "Jugador 1",
+              jugador2Nick: partida.jugadores[1] || "Jugador 2"
             };
             self.actualizarTableroEnTiempoReal(data);
           }
@@ -703,14 +726,32 @@ this.hacerMovimiento = function (codigo, fila, columna) {
   rest.hacerMovimiento(nick, codigo, fila, columna)
     .then(function (resultado) {
       if (resultado.ok) {
-        // Actualizar el tablero inmediatamente con los datos del servidor
-        var data = {
-          tablero: resultado.tablero,
-          turno: resultado.turno,
-          ganador: resultado.ganador
-        };
-        self.actualizarTableroEnTiempoReal(data);
-        console.log("Movimiento realizado y tablero actualizado localmente");
+        // Obtener la partida actual para tener los nicks
+        rest.obtenerTodasLasPartidas()
+          .then(function(partidas) {
+            var partida = partidas.find(p => p.codigo === codigo);
+            if (partida) {
+              // Actualizar el tablero inmediatamente con los datos del servidor
+              var data = {
+                tablero: resultado.tablero,
+                turno: resultado.turno,
+                ganador: resultado.ganador,
+                jugador1Nick: partida.jugadores[0] || "Jugador 1",
+                jugador2Nick: partida.jugadores[1] || "Jugador 2"
+              };
+              self.actualizarTableroEnTiempoReal(data);
+              console.log("Movimiento realizado y tablero actualizado localmente");
+            }
+          })
+          .catch(function(error) {
+            // Si no se pueden obtener los nicks, al menos actualizar el tablero
+            var data = {
+              tablero: resultado.tablero,
+              turno: resultado.turno,
+              ganador: resultado.ganador
+            };
+            self.actualizarTableroEnTiempoReal(data);
+          });
       } else {
         self.mostrarMensaje("Error: " + resultado.msg);
       }
