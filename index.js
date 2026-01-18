@@ -170,7 +170,8 @@ app.get("/", (req, res) => {
 
   contenido = contenido.replace(
     "%%GOOGLE_ONETAP_CALLBACK%%",
-    process.env.BASE_URL + "oneTap/callback"
+    process.env.BASE_URL.replace(/\/$/, "") + "/oneTap/callback"
+
   );
 
   res.setHeader("Content-Type", "text/html");
