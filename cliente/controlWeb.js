@@ -117,9 +117,9 @@ function ControlWeb() {
 
                 if (email && pwd) {
                     // Cuando tengas implementado el login local, descomenta:
-                    // rest.loginUsuario(email, pwd);
+                    rest.loginUsuario(email, pwd);
 
-                    rest.agregarUsuario(email);
+                    //rest.agregarUsuario(email);
                 } else {
                     console.log("Introduce email y contraseña");
                 }

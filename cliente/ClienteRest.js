@@ -259,5 +259,23 @@ $.removeCookie("nick");
 }); 
 } 
 
-
+// --- Login Usuario ---
+  this.loginUsuario = function (email, password) {
+    return $.post("/loginUsuario", { email, password })
+      .then(function (data) {
+        if (data.nick !== -1) {
+          console.log("Login exitoso para:", email);
+          $.cookie("nick", data.nick, { path: "/" });
+          cw.comprobarSesion();
+        } else {
+          console.error("Login fallido para:", email);
+          cw.mostrarModal("No se ha podido iniciar sesión");
+        }
+        return data;
+      })
+      .catch(function (err) {
+        console.error("Error en loginUsuario:", err);
+        throw err;
+      });
+  };
 }

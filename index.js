@@ -118,9 +118,11 @@ app.get("/confirmarUsuario/:email/:key", function (request, response) {
 
   sistema.confirmarUsuario({ email: email, key: key }, function (usr) {
     if (usr.email !== -1) {
-      response.cookie("nick", usr.email);
-    }
-    response.redirect("/");
+     response.redirect("/");
+    } else {
+     response.redirect("/fallo");
+  }
+
   });
 });
 
@@ -134,18 +136,26 @@ app.post(
 );
 
 // ---------- LOGIN LOCAL ----------
-app.post(
-  "/loginUsuario",
-  passport.authenticate("local", {
-    failureRedirect: "/fallo",
-    successRedirect: "/ok",
-  })
-);
+app.post("/loginUsuario", function (req, res, next) {
+  passport.authenticate("local", function (err, user) {
+    if (err || !user || user.email === -1) {
+      return res.json({ nick: -1 });
+    }
+
+    req.login(user, function (err) {
+      if (err) {
+        return res.json({ nick: -1 });
+      }
+      return res.json({ nick: user.email });
+    });
+  })(req, res, next);
+});
+
 
 // ÉXITO LOGIN LOCAL
-app.get("/ok", function (request, response) {
-  response.send({ nick: request.user.email });
-});
+//app.get("/ok", function (request, response) {
+//  response.send({ nick: request.user.email });
+//});
 
 // FALLO LOGIN (local / google / onetap)
 app.get("/fallo", function (req, res) {
@@ -153,8 +163,8 @@ app.get("/fallo", function (req, res) {
 });
 
 // ======================================================
-//       RUTAS HTML + API USUARIOS DEL SISTEMA
-// ======================================================
+//      RUTAS HTML Y API USUARIOS DEL SISTEMA
+// ====== ================================================
 
 // Página principal: devuelve cliente/index.html inyectando variables
 app.get("/", (req, res) => {

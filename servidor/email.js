@@ -22,19 +22,23 @@ gv.obtenerOptions(function(res){
 
 // ENVIAR EMAIL DE CONFIRMACIÓN
 module.exports.enviarEmail = async function (direccion, key, men) {
-    const result = await transporter.sendMail({
-        from: 'cristilou965@gmail.com',   // o mejor: options.user si lo pasas también
-        to: direccion,
-        subject: men,
-        text: 'Pulsa aquí para confirmar cuenta',
-        html: `
-            <p>Bienvenido a Sistema</p>
-            <a href="${url}/confirmarUsuario/${direccion}/${key}">
+  const enlace = `${url}/confirmarUsuario/${direccion}/${key}`;
 
-                Pulsa aquí para confirmar cuenta
-            </a>
-        `
-    });
+  const result = await transporter.sendMail({
+    from: 'cristilou965@gmail.com',
+    to: direccion,
+    subject: men,
+    text: `Pulsa aquí para confirmar cuenta: ${enlace}`,
+    html: `
+      <p>Bienvenido a Sistema</p>
+      <p>
+        <a href="${enlace}">
+          Pulsa aquí para confirmar cuenta
+        </a>
+      </p>
+    `
+  });
 
-    return result;
+  return result;
 };
+

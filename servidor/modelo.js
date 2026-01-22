@@ -22,13 +22,18 @@ this.loginUsuario = function (obj, callback) {
     // Solo puede iniciar sesión si confirmada = true
     this.cad.buscarUsuario(
         { email: obj.email, confirmada: true },
-        function (usr) {
-          bcrypt.compare(obj.password, usr.password).then(esCorrecta => {
-          if (esCorrecta) callback(usr)
-          else callback({ email: -1 })
-})
-         
+      function (usr) {
+        if (!usr) {
+          callback({ email: -1 });
+          return;
         }
+
+        bcrypt.compare(obj.password, usr.password).then(esCorrecta => {
+          if (esCorrecta) callback(usr);
+          else callback({ email: -1 });
+        });
+      }
+
     );
 };
 
