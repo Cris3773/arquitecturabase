@@ -5,7 +5,9 @@ const gv = require('./gestorVariables.js');
 // URL A USAR
 // ---------------------------------------
 
-const url = process.env.BASE_URL || 'http://localhost:3000/';
+const url = (process.env.BASE_URL || 'http://localhost:3000')
+  .replace(/\/$/, '');
+
 
 let transporter;
 

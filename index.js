@@ -111,7 +111,7 @@ app.get("/good", function (request, response) {
   });
 });
 
-// ---------- CONFIRMAR USUARIO (EMAIL) ----------
+// CONFIRMAR USUARIO (EMAIL)
 app.get("/confirmarUsuario/:email/:key", function (request, response) {
   let email = request.params.email;
   let key = request.params.key;
