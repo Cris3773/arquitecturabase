@@ -207,11 +207,14 @@ app.get("/eliminarUsuario/:nick", haIniciado, (req, res) => {
 });
 
 app.get("/cerrarSesion",haIniciado,function(request,response){ 
-let nick=request.user.nick; 
+let nick=request.user && (request.user.nick || request.user.email); 
+if (nick){ 
+  wsServer.manejarSalirPartidaPorNick(nick);
+} 
 request.logout(); 
 response.redirect("/"); 
 if (nick){ 
-sistema.eliminarUsuario(nick); 
+  sistema.eliminarUsuario(nick); 
 } 
 }); 
 

@@ -3,42 +3,54 @@ function WSServer(io, sistema){
   this.sistema = sistema;
   var self = this;
 
-  this.manejarSalirPartida = function(jugador){
-    // Cierra la partida y limpia el estado del jugador que sale
-    let codigo = jugador.partida || jugador.codigo;
-    let nick = jugador.nick;
-    let partida = self.sistema.partidas[codigo];
-    if (!partida) return;
+  this.manejarSalirPartida = function (jugador) {
+  if (!jugador || !jugador.data) return;
 
-    let numJugador = 0;
-    let nickNorm = (nick || "").toLowerCase();
-    let propietarioNorm = (partida.propietario || "").toLowerCase();
-    let jugador2Norm = (partida.jugadores.length > 1 && partida.jugadores[1].nick) ? partida.jugadores[1].nick.toLowerCase() : "";
-    if (propietarioNorm === nickNorm) numJugador = 1;
-    else if (jugador2Norm === nickNorm) numJugador = 2;
+  const codigo = jugador.data.partida || jugador.data.codigo;
+  if (!codigo) return;
 
-    if (numJugador > 0) {
-      partida.jugadoresActivos[numJugador] = false;
-    }
+  const partida = self.sistema.partidas[codigo];
+  if (!partida) return;
 
-    if (partida.solicitudesNuevaRonda && nick) {
-      delete partida.solicitudesNuevaRonda[nick];
-    }
+  //CALCULAR numJugador
+  let numJugador = 0;
+  let nick = jugador.data.nick;
+  let nickNorm = (nick || "").toLowerCase();
+  let propietarioNorm = (partida.propietario || "").toLowerCase();
+  let jugador2Norm =
+    (partida.jugadores.length > 1 && partida.jugadores[1].nick)
+      ? partida.jugadores[1].nick.toLowerCase()
+      : "";
 
-    partida.cerrada = true;
+  if (propietarioNorm === nickNorm) numJugador = 1;
+  else if (jugador2Norm === nickNorm) numJugador = 2;
 
-    let otroNum = numJugador === 1 ? 2 : 1;
-    if (partida.jugadoresActivos[otroNum]) {
-      jugador.to(codigo).emit("jugador_salio", {
-        tipo: "jugador_salio",
-        mensaje: "El otro jugador ha abandonado la partida."
-      });
-    }
+  // Marcar jugador inactivo
+  if (numJugador > 0 && partida.jugadoresActivos) {
+    partida.jugadoresActivos[numJugador] = false;
+  }
 
-    if (!partida.jugadoresActivos[1] && !partida.jugadoresActivos[2]) {
-      delete self.sistema.partidas[codigo];
-    }
-  };
+  //NOTIFICAR AL OTRO JUGADOR (BIEN HECHO)
+  let otroNum = numJugador === 1 ? 2 : 1;
+  let otroSocket = partida.sockets && partida.sockets[otroNum];
+
+  if (otroSocket) {
+    otroSocket.emit("jugador_salio", {
+      tipo: "jugador_salio",
+      mensaje: "El otro jugador ha abandonado la partida."
+    });
+  }
+
+  //BORRAR LA PARTIDA
+  delete self.sistema.partidas[codigo];
+
+  //LIMPIAR EL SOCKET
+  jugador.data.partida = null;
+  jugador.data.codigo = null;
+  jugador.data.nick = null;
+};
+
+
 
   this.lanzarServer = function(){ 
     io.on('connection', function(socket){ 
@@ -117,6 +129,16 @@ function WSServer(io, sistema){
         self.manejarSalirPartida(socket);
       });
     }); 
+  };
+
+  this.manejarSalirPartidaPorNick = function(nick){
+    if (!nick) return;
+    let nickNorm = nick.toLowerCase();
+    for (const s of io.sockets.sockets.values()){
+      if (s.data && s.data.nick && s.data.nick.toLowerCase() === nickNorm && s.data.partida){
+        self.manejarSalirPartida(s);
+      }
+    }
   };
 
   this.notificarPartidaCreada = function(partida) {

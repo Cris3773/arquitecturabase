@@ -449,6 +449,9 @@ this.abandonarPartida = function (codigo) {
     if (this.codigoPartidaActual && typeof ws !== 'undefined') {
       ws.salirPartida(this.codigoPartidaActual);
     }
+    this.codigoPartidaSalida = this.codigoPartidaActual || this.codigoPartidaSalida;
+    this.codigoPartidaActual = null;
+    this.esperandoNuevaRonda = false;
     if (this.intervaloPartidas) {
       clearInterval(this.intervaloPartidas);
       this.intervaloPartidas = null;
