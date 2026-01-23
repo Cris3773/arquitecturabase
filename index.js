@@ -104,12 +104,18 @@ app.get(
 );
 
 app.get("/good", function (request, response) {
-  let email = request.user.emails[0].value;
-  sistema.usuarioGoogle({ email: email }, function (obj) {
-    response.cookie("nick", obj.email);
-    response.redirect("/");
-  });
+  let email = request.user.email || (request.user.emails && request.user.emails[0]?.value);
+  if (email) {
+    sistema.usuarioGoogle({ email: email }, function (obj) {
+      response.cookie("nick", obj.email);
+      response.redirect("/");
+    });
+  } else {
+    console.error("Invalid user object:", request.user);
+    response.redirect("/fallo");
+  }
 });
+
 
 // CONFIRMAR USUARIO (EMAIL)
 app.get("/confirmarUsuario/:email/:key", function (request, response) {
